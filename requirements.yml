@@ -1,0 +1,5 @@
+collections:
+  - name: community.general
+  - name: ansible.posix
+  # Paquets AUR (paru / makepkg) : https://github.com/kewlfft/ansible-aur
+  - name: kewlfft.aur

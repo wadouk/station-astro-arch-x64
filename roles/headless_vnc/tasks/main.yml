@@ -1,0 +1,140 @@
+- name: Mot de passe VNC valide
+  ansible.builtin.assert:
+    that: vnc_password | length >= 6
+    fail_msg: "vnc_password : 6 caractères minimum (8 utiles au plus)"
+    quiet: true
+
+- name: Paquets VNC, écran factice et LightDM
+  community.general.pacman:
+    name: "{{ vnc_packages }}"
+    state: present
+
+# --- Connexion automatique (équivalent de configs/kde_settings.conf d'AstroArch) ---
+- name: Groupe autologin
+  ansible.builtin.group:
+    name: autologin
+    system: true
+
+- name: "{{ station_user }} dans le groupe autologin"
+  ansible.builtin.user:
+    name: "{{ station_user }}"
+    groups: autologin
+    append: true
+
+- name: Fichier complémentaire LightDM
+  ansible.builtin.copy:
+    dest: /etc/lightdm/lightdm.conf.d/50-astro-autologin.conf
+    content: |
+      # {{ ansible_managed }}
+      [Seat:*]
+      autologin-user={{ station_user }}
+      autologin-session=xfce
+    mode: "0644"
+
+- name: Lire la configuration effective de LightDM
+  ansible.builtin.shell: lightdm --show-config 2>&1
+  register: _lightdm_config
+  changed_when: false
+  check_mode: false
+
+- name: LightDM voit bien la connexion automatique
+  ansible.builtin.assert:
+    that: "'autologin-user=' ~ station_user in _lightdm_config.stdout"
+    fail_msg: "LightDM ignore le fichier complémentaire : vérifier /etc/lightdm/lightdm.conf"
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Activer LightDM (prise en compte au redémarrage)
+  ansible.builtin.systemd_service:
+    name: lightdm
+    enabled: true
+
+# --- Écran factice (adapté de configs/xorg.conf d'AstroArch, un seul écran) ---
+- name: Écran factice
+  ansible.builtin.template:
+    src: 10-headless-dummy.conf.j2
+    dest: /etc/X11/xorg.conf.d/10-headless-dummy.conf
+    mode: "0644"
+  when: vnc_dummy_screen
+
+- name: Écran physique (écran factice désactivé)
+  ansible.builtin.file:
+    path: /etc/X11/xorg.conf.d/10-headless-dummy.conf
+    state: absent
+  when: not vnc_dummy_screen
+
+# --- Côté utilisateur : x0vncserver lancé par la session XFCE ---
+- name: Répertoires utilisateur
+  become: false
+  ansible.builtin.file:
+    path: "~/.config/{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - tigervnc
+    - systemd/user
+    - autostart
+
+# vncpasswd -f est déterministe : on ne remplace le fichier que s'il change
+- name: Mot de passe VNC
+  become: false
+  ansible.builtin.shell: |
+    set -eu
+    f="$HOME/.config/tigervnc/passwd"
+    printf '%s\n' "$VNC_PW" | vncpasswd -f > "$f.new"
+    if cmp -s "$f.new" "$f"; then rm -f "$f.new"; echo unchanged
+    else mv "$f.new" "$f"; chmod 600 "$f"; echo changed; fi
+  environment:
+    VNC_PW: "{{ vnc_password }}"
+  register: _vncpasswd
+  changed_when: "'changed' in _vncpasswd.stdout"
+  no_log: true
+  notify: Relancer x0vncserver
+
+- name: Service utilisateur x0vncserver
+  become: false
+  ansible.builtin.template:
+    src: x0vncserver.service.j2
+    dest: ~/.config/systemd/user/x0vncserver.service
+    mode: "0644"
+  notify: Relancer x0vncserver
+
+- name: Lancement de x0vncserver à l'ouverture de la session
+  become: false
+  ansible.builtin.copy:
+    dest: ~/.config/autostart/x0vncserver.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=x0vncserver
+      Comment=Partage VNC de la session :0
+      Exec=sh -c 'systemctl --user import-environment DISPLAY XAUTHORITY && systemctl --user restart x0vncserver'
+      X-GNOME-Autostart-enabled=true
+    mode: "0644"
+
+# --- Ni verrouillage, ni extinction d'écran (équivalent de configs/kscreenlockerrc) ---
+- name: Masquer l'économiseur et le verrouillage
+  become: false
+  ansible.builtin.copy:
+    dest: "~/.config/autostart/{{ item }}.desktop"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name={{ item }}
+      Hidden=true
+    mode: "0644"
+  loop:
+    - xfce4-screensaver
+    - light-locker
+
+- name: Pas d'extinction d'écran
+  become: false
+  ansible.builtin.copy:
+    dest: ~/.config/autostart/astro-noblank.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Pas d'extinction d'écran
+      Exec=sh -c 'sleep 5; xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -n -t bool -s false; xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -n -t int -s 0; xset s off -dpms s noblank'
+      X-GNOME-Autostart-enabled=true
+    mode: "0644"

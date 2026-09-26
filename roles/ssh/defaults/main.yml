@@ -1,0 +1,5 @@
+ssh_packages:
+  - openssh
+  - xorg-xauth   # ssh -X
+  - avahi        # publie <nom>.local
+  - nss-mdns     # résout les <nom>.local

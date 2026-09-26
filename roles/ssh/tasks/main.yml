@@ -1,0 +1,44 @@
+- name: Paquets SSH et mDNS
+  community.general.pacman:
+    name: "{{ ssh_packages }}"
+    state: present
+
+# La clé passe avant la coupure du mot de passe : on ne s'enferme pas dehors
+- name: Clé du portable dans authorized_keys
+  ansible.posix.authorized_key:
+    user: "{{ station_user }}"
+    key: "{{ lookup('file', ssh_pubkey_file) }}"
+    state: present
+
+- name: Include des fichiers complémentaires en tête de sshd_config (sshd garde la première valeur lue)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    line: Include /etc/ssh/sshd_config.d/*.conf
+    insertbefore: BOF
+    backup: true
+
+- name: Configuration sshd (inspirée d'astroarch_build.sh, sans root ni mot de passe)
+  ansible.builtin.template:
+    src: 50-astro.conf.j2
+    dest: /etc/ssh/sshd_config.d/50-astro.conf
+    mode: "0644"
+    validate: /usr/bin/sshd -t -f %s
+  notify: Recharger sshd
+
+- name: Activer sshd
+  ansible.builtin.systemd_service:
+    name: sshd
+    enabled: true
+    state: started
+
+- name: Résolution mDNS (<nom>.local), comme AstroArch
+  ansible.builtin.replace:
+    path: /etc/nsswitch.conf
+    regexp: '^(hosts:\s*mymachines\s)(?!mdns_minimal)'
+    replace: '\1mdns_minimal [NOTFOUND=return] '
+
+- name: Activer avahi
+  ansible.builtin.systemd_service:
+    name: avahi-daemon
+    enabled: true
+    state: started

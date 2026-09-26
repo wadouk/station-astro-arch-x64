@@ -1,0 +1,58 @@
+# snap-pac : snapshot avant/après chaque transaction pacman
+# grub-btrfs : les snapshots apparaissent dans le menu GRUB -> démarrer dessus si une mise à jour casse INDI
+- name: Système de fichiers racine
+  ansible.builtin.set_fact:
+    _root_fstype: "{{ (ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first).fstype }}"
+
+- name: Snapshots btrfs
+  when: _root_fstype == 'btrfs'
+  block:
+    - name: Configuration snapper de la racine (créée par archinstall, option Snapper)
+      ansible.builtin.stat:
+        path: /etc/snapper/configs/root
+      register: _snapper_root
+
+    - name: Pas de configuration snapper
+      ansible.builtin.fail:
+        msg: >-
+          /etc/snapper/configs/root absent : réinstaller avec l'option de snapshots « Snapper »
+          dans le menu disque d'archinstall, ou suivre https://wiki.archlinux.org/title/Snapper
+      when: not _snapper_root.stat.exists
+
+    - name: Paquets snapper, snap-pac, grub-btrfs
+      community.general.pacman:
+        name: [snapper, snap-pac, grub-btrfs, inotify-tools]
+        state: present
+
+    - name: Réglages snapper (pas de snapshots horaires, on garde les 10 derniers pre/post pacman)
+      ansible.builtin.lineinfile:
+        path: /etc/snapper/configs/root
+        regexp: "^{{ item.key }}="
+        line: '{{ item.key }}="{{ item.value }}"'
+      loop:
+        - { key: TIMELINE_CREATE, value: "no" }
+        - { key: NUMBER_LIMIT, value: "10" }
+        - { key: NUMBER_LIMIT_IMPORTANT, value: "5" }
+
+    - name: Nettoyage automatique des vieux snapshots
+      ansible.builtin.systemd_service:
+        name: snapper-cleanup.timer
+        enabled: true
+        state: started
+
+    - name: GRUB présent ?
+      ansible.builtin.stat:
+        path: /boot/grub/grub.cfg
+      register: _grub_cfg
+
+    - name: Menu GRUB mis à jour à chaque snapshot
+      ansible.builtin.systemd_service:
+        name: grub-btrfsd
+        enabled: true
+        state: started
+      when: _grub_cfg.stat.exists
+
+- name: Pas de btrfs
+  ansible.builtin.debug:
+    msg: "Racine en {{ _root_fstype }} : pas de snapshots automatiques. Réinstaller en btrfs pour en profiter."
+  when: _root_fstype != 'btrfs'

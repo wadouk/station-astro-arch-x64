@@ -1,0 +1,3 @@
+- name: Recharger udev
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: true

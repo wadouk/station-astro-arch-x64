@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Remote desktop service (VNC) for :0 display
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/x0vncserver -display :0 -rfbport {{ vnc_port }}{{ ' -localhost' if vnc_localhost_only else '' }} -PasswordFile %h/.config/tigervnc/passwd -AlwaysShared -CompareFB 0
+Restart=on-failure
+RestartSec=2s

@@ -1,0 +1,13 @@
+# Converge la station vers l'état déclaré. Relançable à volonté.
+#   make check HOST=vm   : ce qui changerait (--check --diff)
+#   make apply HOST=vm   : appliquer
+- name: Station d'astrophoto sans écran
+  hosts: stations
+  become: true
+  roles:
+    - base
+    - ssh
+    - network
+    - headless_vnc
+    - snapshots
+    - astro

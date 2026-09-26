@@ -1,0 +1,5 @@
+# try-restart : ne démarre rien si la session graphique n'a pas encore lancé le service
+- name: Relancer x0vncserver
+  become: false
+  ansible.builtin.shell: systemctl --user daemon-reload && systemctl --user try-restart x0vncserver
+  changed_when: true

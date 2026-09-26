@@ -1,0 +1,8 @@
+# Mot de passe ansible-vault
+.vault-pass
+# Collections installées par `make deps`
+collections/
+# ISO, disque et variables UEFI de la VM
+vm/cache/
+# Configuration archinstall générée (identifiants en clair)
+archinstall/out/

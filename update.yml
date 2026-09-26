@@ -1,0 +1,30 @@
+# Mise à jour complète puis reconvergence. Jamais un soir de ciel clair.
+# snap-pac prend un snapshot avant/après : en cas de casse, démarrer sur le snapshot depuis GRUB.
+- name: Mise à jour de la station
+  hosts: stations
+  become: true
+  tasks:
+    - name: pacman -Syu
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+
+    - name: Mise à jour des paquets AUR
+      become_user: aur_builder
+      kewlfft.aur.aur:
+        use: paru
+        upgrade: true
+        aur_only: true
+
+    - name: Noyau en cours encore installé ?
+      ansible.builtin.stat:
+        path: "/usr/lib/modules/{{ ansible_facts.kernel }}"
+      register: _running_kernel
+
+    - name: Redémarrage nécessaire
+      ansible.builtin.debug:
+        msg: "Nouveau noyau installé : redémarrer la station (ssh astro sudo reboot)."
+      when: not _running_kernel.stat.exists
+
+- name: Reconvergence après mise à jour
+  ansible.builtin.import_playbook: site.yml

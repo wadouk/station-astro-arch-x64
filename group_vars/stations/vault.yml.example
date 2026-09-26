@@ -1,0 +1,9 @@
+# Copier en vault.yml puis chiffrer :
+#   cp group_vars/stations/vault.yml.example group_vars/stations/vault.yml
+#   ansible-vault encrypt --vault-password-file .vault-pass group_vars/stations/vault.yml
+# Mot de passe sudo de station_user (celui saisi dans make archinstall-config)
+vault_become_password: "changeme"
+# Mot de passe VNC : 6 à 8 caractères (VNC tronque au-delà de 8)
+vault_vnc_password: "changeme"
+# Clé WPA du point d'accès (8 caractères minimum), si hotspot_ssid est rempli
+vault_hotspot_psk: "changeme-too"

@@ -1,0 +1,63 @@
+# Pas de update_cache ici : un -Sy suivi d'un -S est une mise à jour partielle.
+# Les mises à jour complètes passent par update.yml (make update).
+- name: Paquets de base
+  community.general.pacman:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Nom de la machine
+  ansible.builtin.hostname:
+    name: "{{ station_hostname }}"
+
+- name: Fuseau horaire
+  community.general.timezone:
+    name: "{{ station_timezone }}"
+
+- name: Paquets épinglés (IgnorePkg)
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*IgnorePkg\s*='
+    line: "{{ 'IgnorePkg = ' ~ (pacman_ignore | join(' ')) if pacman_ignore else '#IgnorePkg   =' }}"
+    insertafter: '^\[options\]'
+
+- name: Jamais de mise en veille
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+  loop:
+    - sleep.target
+    - suspend.target
+    - hibernate.target
+    - hybrid-sleep.target
+
+- name: Pas de mise en veille USB (caméras, monture, focuser)
+  ansible.builtin.copy:
+    src: 50-usb-power.rules
+    dest: /etc/udev/rules.d/50-usb-power.rules
+    mode: "0644"
+  notify: Recharger udev
+
+- name: Désactiver systemd-timesyncd (remplacé par chrony)
+  ansible.builtin.systemd_service:
+    name: systemd-timesyncd
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Activer chrony
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Chercher les .pacnew en attente
+  ansible.builtin.find:
+    paths: /etc
+    patterns: "*.pacnew,*.pacsave"
+    recurse: true
+  register: _pacnew
+
+- name: Signaler les .pacnew (à fusionner avec pacdiff)
+  ansible.builtin.debug:
+    msg: "À fusionner avec 'sudo pacdiff' : {{ _pacnew.files | map(attribute='path') | list }}"
+  when: _pacnew.matched > 0

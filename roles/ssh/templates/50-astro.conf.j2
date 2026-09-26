@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+Port {{ ssh_port }}
+PermitRootLogin no
+AllowUsers {{ station_user }}
+MaxAuthTries 4
+PubkeyAuthentication yes
+PasswordAuthentication {{ 'yes' if ssh_password_auth else 'no' }}
+KbdInteractiveAuthentication no
+
+# Redirections, comme AstroArch (tunnel VNC, ssh -X)
+AllowTcpForwarding yes
+X11Forwarding yes
+X11DisplayOffset 10
+X11UseLocalhost yes
+
+# Coupe proprement les sessions mortes sur un Wi-Fi de terrain instable
+ClientAliveInterval 30
+ClientAliveCountMax 6

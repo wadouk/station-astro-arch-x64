@@ -1,0 +1,43 @@
+- name: Activer NetworkManager
+  ansible.builtin.systemd_service:
+    name: NetworkManager
+    enabled: true
+    state: started
+
+- name: Wi-Fi sans économie d'énergie côté NetworkManager (configs/default-wifi-powersave-off.conf d'AstroArch)
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf
+    content: |
+      [connection]
+      wifi.powersave = 2
+    mode: "0644"
+  notify: Recharger NetworkManager
+
+- name: Paquet iw pour la règle udev
+  community.general.pacman:
+    name: iw
+    state: present
+
+- name: Wi-Fi sans économie d'énergie côté pilote (configs/81-wifi-powersave.rules d'AstroArch)
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/81-wifi-powersave.rules
+    content: |
+      ACTION=="add", SUBSYSTEM=="net", KERNEL=="wl*", RUN+="/usr/bin/iw dev $name set power_save off"
+    mode: "0644"
+
+# Fichier de connexion déclaratif : créé et rechargé, jamais activé de force
+# (autoconnect-priority -10 : le Wi-Fi connu passe avant, le point d'accès prend le relais sur le terrain)
+- name: Point d'accès Wi-Fi de terrain
+  ansible.builtin.template:
+    src: astro-hotspot.nmconnection.j2
+    dest: /etc/NetworkManager/system-connections/astro-hotspot.nmconnection
+    mode: "0600"
+  when: hotspot_ssid | length > 0
+  notify: Recharger les connexions NetworkManager
+
+- name: Retirer le point d'accès s'il n'est plus configuré
+  ansible.builtin.file:
+    path: /etc/NetworkManager/system-connections/astro-hotspot.nmconnection
+    state: absent
+  when: hotspot_ssid | length == 0
+  notify: Recharger les connexions NetworkManager

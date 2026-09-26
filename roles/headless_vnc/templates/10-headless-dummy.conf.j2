@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Adapté de configs/xorg.conf d'AstroArch, réduit au seul écran factice.
+# Retour à l'écran physique : vnc_dummy_screen: false puis make apply (ou supprimer ce fichier).
+Section "Device"
+    Identifier "DummyCard"
+    Driver     "dummy"
+    VideoRam   256000
+EndSection
+
+Section "Monitor"
+    Identifier  "DummyMonitor"
+    HorizSync   28.0-80.0
+    VertRefresh 48.0-75.0
+    Modeline {{ vnc_modeline }}
+EndSection
+
+Section "Screen"
+    Identifier   "DummyScreen"
+    Device       "DummyCard"
+    Monitor      "DummyMonitor"
+    DefaultDepth 24
+    SubSection "Display"
+        Depth   24
+        Virtual {{ vnc_width }} {{ vnc_height }}
+        Modes   {{ vnc_modeline.split()[0] }}
+    EndSubSection
+EndSection
+
+Section "ServerLayout"
+    Identifier "Headless"
+    Screen 0   "DummyScreen"
+EndSection

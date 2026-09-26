@@ -1,0 +1,5 @@
+vnc_packages:
+  - tigervnc
+  - xf86-video-dummy
+  - lightdm
+  - lightdm-gtk-greeter

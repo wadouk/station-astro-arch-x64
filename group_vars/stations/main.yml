@@ -1,0 +1,44 @@
+# Utilisateur créé par archinstall, utilisé par Ansible et pour la session graphique
+station_user: astro
+ansible_user: "{{ station_user }}"
+# Mot de passe sudo de station_user, dans le coffre (pas de sudo sans mot de passe permanent)
+ansible_become_password: "{{ vault_become_password }}"
+
+station_hostname: astro-station
+station_timezone: Europe/Paris
+
+# Clé publique du portable déposée dans ~/.ssh/authorized_keys de la station
+ssh_pubkey_file: "~/.ssh/id_ed25519.pub"
+ssh_port: 22
+# La clé est déposée avant de couper le mot de passe (voir roles/ssh)
+ssh_password_auth: false
+
+# VNC : x0vncserver partage la session :0
+vnc_port: 5900
+vnc_password: "{{ vault_vnc_password }}"
+# true = VNC joignable seulement par tunnel SSH (ssh -L 5900:localhost:5900)
+vnc_localhost_only: false
+# Écran factice pour la station sans écran (adapté de configs/xorg.conf d'AstroArch)
+vnc_dummy_screen: true
+vnc_width: 1920
+vnc_height: 1080
+# Modeline générée par `cvt 1920 1080 60` ou reprise d'AstroArch ; à changer avec la résolution
+vnc_modeline: '"1920x1080_60.00" 172.80 1920 2040 2248 2576 1080 1081 1084 1118 -HSync +Vsync'
+
+# Point d'accès Wi-Fi de terrain (vide = aucun). Priorité basse : le Wi-Fi connu passe avant
+hotspot_ssid: ""
+hotspot_psk: "{{ vault_hotspot_psk | default('') }}"
+# vide = n'importe quelle interface Wi-Fi
+wifi_iface: ""
+
+# Paquets épinglés pendant la saison d'observation (IgnorePkg de pacman), ex. [kstars, libindi]
+pacman_ignore: []
+
+# Logiciels astro
+astro_packages:
+  - kstars
+  - libindi
+  - stellarsolver
+# Vérifier les noms sur https://aur.archlinux.org avant d'ajouter des pilotes
+astro_aur_packages:
+  - phd2

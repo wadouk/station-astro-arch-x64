@@ -1,0 +1,43 @@
+- name: Logiciels astro des dépôts officiels
+  community.general.pacman:
+    name: "{{ astro_packages }}"
+    state: present
+
+# --- AUR : utilisateur dédié, méthode documentée par kewlfft.aur ---
+# aur_builder peut lancer pacman sans mot de passe, et rien d'autre
+- name: Utilisateur aur_builder
+  ansible.builtin.user:
+    name: aur_builder
+    system: true
+    create_home: true
+    home: /var/lib/aur_builder
+
+- name: aur_builder peut lancer pacman
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/11-aur_builder
+    content: "aur_builder ALL=(ALL) NOPASSWD: /usr/bin/pacman\n"
+    mode: "0440"
+    validate: /usr/bin/visudo -cf %s
+
+- name: Assistant AUR paru
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: paru-bin
+    use: makepkg
+    state: present
+
+- name: Paquets AUR (pilotes, PHD2...)
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: "{{ astro_aur_packages }}"
+    use: paru
+    state: present
+  when: astro_aur_packages | length > 0
+
+- name: Accès aux ports série et USB (montures, GPS, focusers)
+  ansible.builtin.user:
+    name: "{{ station_user }}"
+    groups: uucp
+    append: true
