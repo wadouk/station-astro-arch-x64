@@ -13,6 +13,30 @@
   community.general.timezone:
     name: "{{ station_timezone }}"
 
+- name: Disposition du clavier en console
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^KEYMAP='
+    line: "KEYMAP={{ station_keymap }}"
+    create: true
+    mode: "0644"
+
+# Lu par X au démarrage : vaut pour la session XFCE, donc pour ce que tu tapes en VNC
+- name: Disposition du clavier sous X
+  ansible.builtin.copy:
+    dest: /etc/X11/xorg.conf.d/00-keyboard.conf
+    content: |
+      # {{ ansible_managed }}
+      Section "InputClass"
+          Identifier "system-keyboard"
+          MatchIsKeyboard "on"
+          Option "XkbLayout" "{{ station_x11_layout }}"
+      {% if station_x11_variant %}
+          Option "XkbVariant" "{{ station_x11_variant }}"
+      {% endif %}
+      EndSection
+    mode: "0644"
+
 - name: Paquets épinglés (IgnorePkg)
   ansible.builtin.lineinfile:
     path: /etc/pacman.conf

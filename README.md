@@ -60,7 +60,7 @@ La config archinstall générée installe openssh, active sshd et dépose la cl�
 | Étape | Où | Quoi |
 |---|---|---|
 | 1 | portable | générer la config archinstall, préparer le coffre |
-| 2 | console du live | `loadkeys fr`, réseau, `passwd` (root du live uniquement) |
+| 2 | console du live | clavier, réseau, `passwd` (root du live uniquement) |
 | 3 | portable → live (SSH) | copier la config, lancer `archinstall`, choisir le disque |
 | 4 | portable → système installé | `ssh astro@…` sans mot de passe, puis Ansible |
 | 5 | portable | redémarrage sans écran, VNC |
@@ -76,7 +76,7 @@ make vm-install                 # démarre la VM sur l'ISO (fenêtre QEMU)
 ```
 Dans la fenêtre QEMU, une fois la console de l'ISO affichée :
 ```bash
-loadkeys fr
+loadkeys fr                     # seulement pour un clavier AZERTY (l'ISO est en QWERTY US)
 passwd                          # mot de passe root du live, par exemple « live »
 ```
 Puis depuis le portable :
@@ -122,7 +122,7 @@ sudo dd if=vm/cache/archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress oflag
 - BIOS : démarrage **UEFI**, **Secure Boot désactivé**, démarrage sur la clé (F7, F11 ou Suppr selon la carte).
 - Console du live :
   ```bash
-  loadkeys fr
+  loadkeys fr                   # seulement pour un clavier AZERTY
   ip -4 a                       # noter l'IP ; en Wi-Fi : iwctl station wlan0 connect <SSID>
   passwd                        # root du live uniquement
   ```

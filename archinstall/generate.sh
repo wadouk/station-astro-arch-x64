@@ -24,6 +24,8 @@ command -v jq >/dev/null || _die "jq requis"
 
 station_user="$(_var station_user "$REPO_DIR/group_vars/stations/main.yml")"
 hostname="$(_var station_hostname "$REPO_DIR/group_vars/stations/main.yml")"
+keymap="$(_var station_keymap "$REPO_DIR/group_vars/stations/main.yml")"
+timezone="$(_var station_timezone "$REPO_DIR/group_vars/stations/main.yml")"
 if [[ "${1:-}" == "--vm" ]]; then
     hostname="$(_var station_hostname "$REPO_DIR/inventory/host_vars/vm.yml")"
     password="$VM_PASSWORD"
@@ -37,8 +39,11 @@ pubkey="$(cat "$PUBKEY_FILE")"
 install -d -m 700 "$OUT_DIR"
 
 # La clé du portable est posée dès l'installation : Ansible se connecte sans étape manuelle
-jq --arg host "$hostname" --arg user "$station_user" --arg key "$pubkey" '
+jq --arg host "$hostname" --arg user "$station_user" --arg key "$pubkey" \
+   --arg kb "$keymap" --arg tz "$timezone" '
     .hostname = $host
+    | .locale_config.kb_layout = $kb
+    | .timezone = $tz
     | .custom_commands += [
         "install -d -m 700 -o \($user) -g \($user) /home/\($user)/.ssh",
         "printf \"%s\\n\" \"\($key)\" > /home/\($user)/.ssh/authorized_keys",
@@ -52,5 +57,5 @@ jq -n --arg user "$station_user" --arg pw "$password" '
 ' > "$OUT_DIR/user_credentials.json"
 chmod 600 "$OUT_DIR/user_credentials.json"
 
-_log "Écrit : $OUT_DIR/user_configuration.json (hôte $hostname, utilisateur $station_user)"
+_log "Écrit : $OUT_DIR/user_configuration.json (hôte $hostname, utilisateur $station_user, clavier $keymap)"
 _log "Écrit : $OUT_DIR/user_credentials.json (non versionné)"
