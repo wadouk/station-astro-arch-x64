@@ -1,0 +1,11 @@
+# Une fois, pour que grub.cfg contienne le sous-menu des snapshots ; grub-btrfsd le tient ensuite à jour
+- name: Régénérer grub.cfg
+  ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+  changed_when: true
+  when: _grub_cfg.stat.exists | default(false)
+
+- name: Relancer grub-btrfsd
+  ansible.builtin.systemd_service:
+    name: grub-btrfsd
+    daemon_reload: true
+    state: restarted

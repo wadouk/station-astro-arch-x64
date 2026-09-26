@@ -94,7 +94,7 @@
   environment:
     VNC_PW: "{{ vnc_password }}"
   register: _vncpasswd
-  changed_when: "'changed' in _vncpasswd.stdout"
+  changed_when: _vncpasswd.stdout == 'changed'
   no_log: true
   notify: Relancer x0vncserver
 

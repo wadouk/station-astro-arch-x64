@@ -1,5 +1,8 @@
+# Snapshots de la racine seulement (jamais de /home : les images supprimées doivent libérer l'espace).
 # snap-pac : snapshot avant/après chaque transaction pacman
 # grub-btrfs : les snapshots apparaissent dans le menu GRUB -> démarrer dessus si une mise à jour casse INDI
+# Reprend ce que fait l'option « Btrfs snapshots → Snapper » d'archinstall (installer.py,
+# setup_btrfs_snapshot), sans dépendre de cette case ni de sa config /home à snapshots horaires.
 - name: Système de fichiers racine
   ansible.builtin.set_fact:
     _root_fstype: "{{ (ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first).fstype }}"
@@ -7,24 +10,18 @@
 - name: Snapshots btrfs
   when: _root_fstype == 'btrfs'
   block:
-    - name: Configuration snapper de la racine (créée par archinstall, option Snapper)
-      ansible.builtin.stat:
-        path: /etc/snapper/configs/root
-      register: _snapper_root
-
-    - name: Pas de configuration snapper
-      ansible.builtin.fail:
-        msg: >-
-          /etc/snapper/configs/root absent : réinstaller avec l'option de snapshots « Snapper »
-          dans le menu disque d'archinstall, ou suivre https://wiki.archlinux.org/title/Snapper
-      when: not _snapper_root.stat.exists
-
-    - name: Paquets snapper, snap-pac, grub-btrfs
+    - name: Paquet snapper
       community.general.pacman:
-        name: [snapper, snap-pac, grub-btrfs, inotify-tools]
+        name: snapper
         state: present
 
-    - name: Réglages snapper (pas de snapshots horaires, on garde les 10 derniers pre/post pacman)
+    # Crée /.snapshots (sous-volume dans @), comme archinstall
+    - name: Configuration snapper de la racine
+      ansible.builtin.command: snapper --no-dbus -c root create-config /
+      args:
+        creates: /etc/snapper/configs/root
+
+    - name: Réglages snapper de la racine (pas de snapshots horaires, 10 derniers pre/post pacman)
       ansible.builtin.lineinfile:
         path: /etc/snapper/configs/root
         regexp: "^{{ item.key }}="
@@ -34,16 +31,68 @@
         - { key: NUMBER_LIMIT, value: "10" }
         - { key: NUMBER_LIMIT_IMPORTANT, value: "5" }
 
+    # Si archinstall a créé une config /home (option Snapper cochée), on coupe ses snapshots horaires
+    - name: Config snapper de /home ?
+      ansible.builtin.stat:
+        path: /etc/snapper/configs/home
+      register: _snapper_home
+
+    - name: Pas de snapshots horaires de /home
+      ansible.builtin.lineinfile:
+        path: /etc/snapper/configs/home
+        regexp: '^TIMELINE_CREATE='
+        line: 'TIMELINE_CREATE="no"'
+      when: _snapper_home.stat.exists
+
+    - name: Signaler la config /home
+      ansible.builtin.debug:
+        msg: >-
+          Config snapper /home présente (créée par archinstall) : snapshots horaires coupés.
+          Ses anciens snapshots retiennent encore de l'espace : sudo snapper -c home list
+      when: _snapper_home.stat.exists
+
+    # Après la config : le hook de snap-pac la trouve dès sa première transaction
+    - name: Paquets snap-pac et grub-btrfs
+      community.general.pacman:
+        name: [snap-pac, grub-btrfs, inotify-tools]
+        state: present
+      notify: Régénérer grub.cfg
+
     - name: Nettoyage automatique des vieux snapshots
       ansible.builtin.systemd_service:
         name: snapper-cleanup.timer
         enabled: true
         state: started
 
+    - name: Pas de timer de snapshots horaires
+      ansible.builtin.systemd_service:
+        name: snapper-timeline.timer
+        enabled: false
+        state: stopped
+
     - name: GRUB présent ?
       ansible.builtin.stat:
         path: /boot/grub/grub.cfg
       register: _grub_cfg
+
+    - name: Dossier de surcharge de grub-btrfsd
+      ansible.builtin.file:
+        path: /etc/systemd/system/grub-btrfsd.service.d
+        state: directory
+        mode: "0755"
+      when: _grub_cfg.stat.exists
+
+    - name: grub-btrfsd surveille /.snapshots (même surcharge qu'archinstall)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/grub-btrfsd.service.d/override.conf
+        content: |
+          # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/grub-btrfsd --syslog /.snapshots
+        mode: "0644"
+      when: _grub_cfg.stat.exists
+      notify: Relancer grub-btrfsd
 
     - name: Menu GRUB mis à jour à chaque snapshot
       ansible.builtin.systemd_service:

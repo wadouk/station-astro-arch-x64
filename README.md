@@ -29,7 +29,7 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `roles/ssh` | clé du portable, sshd durci (sans root ni mot de passe), redirections TCP/X11, `<nom>.local` (avahi) |
 | `roles/network` | Wi-Fi sans économie d'énergie, point d'accès de terrain (fichier NetworkManager déclaratif) |
 | `roles/headless_vnc` | connexion auto LightDM, écran factice, x0vncserver (service utilisateur), pas de verrouillage |
-| `roles/snapshots` | snapper, snap-pac, grub-btrfs |
+| `roles/snapshots` | snapper (racine seulement), snap-pac, grub-btrfs |
 | `roles/astro` | kstars, libindi, stellarsolver, paquets AUR (utilisateur dédié `aur_builder` + paru) |
 | `update.yml` | `pacman -Syu` + AUR, puis reconvergence |
 | `vm/vm.sh` | VM de test QEMU/UEFI |
@@ -88,10 +88,11 @@ archinstall --config user_configuration.json --creds user_credentials.json
 Tout est prérempli sauf le **disque**. Dans *Disk configuration* :
 1. *Partitioning* → **Use a best-effort default partition layout** → le disque virtuel.
 2. Système de fichiers **btrfs**.
-3. « Would you like to use BTRFS subvolumes with a default structure? » → **Yes**. C'est indispensable :
-   sans sous-volume `@` monté sur `/`, l'entrée suivante n'apparaît pas.
+3. « Would you like to use BTRFS subvolumes with a default structure? » → **Yes** (`@`, `@home`, `@log`, `@pkg`).
 4. Compression : **Use compression** (zstd).
-5. De retour dans *Disk configuration*, l'entrée **Btrfs snapshots** est apparue → **Snapper**.
+5. **Ne pas cocher** *Btrfs snapshots*. C'est le rôle `snapshots` qui installe snapper, pour la racine
+   seulement : l'option d'archinstall ajoute aussi une config `/home` à snapshots horaires, qui retiendrait
+   les images supprimées. Sur la VM de test, cette option n'a d'ailleurs pas été appliquée.
 
 La partition `/boot` proposée (FAT32, ~1 Gio) est la partition EFI qu'utilise GRUB : la garder. Évite le
 partitionnement manuel. Il ne crée pas de sous-volumes, donc pas de snapshots, à moins de les déclarer
@@ -134,7 +135,7 @@ make live-ssh IP=<ip-minipc>
 archinstall --config user_configuration.json --creds user_credentials.json
 ```
 Disque : même procédure que dans la VM (disposition *best-effort*, btrfs, sous-volumes par défaut → **Yes**,
-Btrfs snapshots → **Snapper**), sur le SSD NVMe. **Le SSD est entièrement
+*Btrfs snapshots* non coché), sur le SSD NVMe. **Le SSD est entièrement
 effacé.** À la fin : `poweroff`, retirer la clé USB, rallumer.
 
 **4. Premier démarrage.** L'écran de connexion XFCE s'affiche : la connexion auto n'est pas encore

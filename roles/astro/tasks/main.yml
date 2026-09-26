@@ -19,11 +19,18 @@
     mode: "0440"
     validate: /usr/bin/visudo -cf %s
 
-- name: Assistant AUR paru
+# paru-bin (binaire précompilé) retarde sur pacman : il a cassé au passage à libalpm.so.16.
+# paru compilé depuis les sources suit toujours la libalpm installée.
+- name: Retirer paru-bin
+  community.general.pacman:
+    name: [paru-bin, paru-bin-debug]
+    state: absent
+
+- name: Assistant AUR paru (compilé, quelques minutes la première fois)
   become: true
   become_user: aur_builder
   kewlfft.aur.aur:
-    name: paru-bin
+    name: paru
     use: makepkg
     state: present
 
