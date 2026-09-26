@@ -21,6 +21,13 @@
     groups: autologin
     append: true
 
+# Le paquet Arch ne crée pas ce dossier, mais LightDM le lit bien (avant lightdm.conf)
+- name: Dossier des fichiers complémentaires LightDM
+  ansible.builtin.file:
+    path: /etc/lightdm/lightdm.conf.d
+    state: directory
+    mode: "0755"
+
 - name: Fichier complémentaire LightDM
   ansible.builtin.copy:
     dest: /etc/lightdm/lightdm.conf.d/50-astro-autologin.conf
