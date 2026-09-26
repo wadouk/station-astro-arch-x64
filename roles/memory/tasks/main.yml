@@ -1,0 +1,50 @@
+# 8 Go de RAM : on encaisse les pics (plate-solving, FITS, KStars) sans que le noyau tue la séquence.
+
+# Swap en RAM compressée (zstd, ~3:1) : jusqu'à la taille de la RAM, sans aucune écriture sur le SSD.
+# Pris en compte au prochain démarrage (on ne recrée pas un swap en cours d'utilisation).
+- name: Taille et compression de zram
+  ansible.builtin.copy:
+    dest: /etc/systemd/zram-generator.conf
+    content: |
+      # {{ ansible_managed }}
+      [zram0]
+      zram-size = ram
+      compression-algorithm = zstd
+      swap-priority = 100
+    mode: "0644"
+
+# Réglages recommandés pour zram : https://wiki.archlinux.org/title/Zram#Optimizing_swap_on_zram
+- name: Réglages mémoire du noyau pour zram
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-vm-zram-parameters.conf
+    content: |
+      # {{ ansible_managed }}
+      vm.swappiness = 180
+      vm.watermark_boost_factor = 0
+      vm.watermark_scale_factor = 125
+      vm.page-cluster = 0
+    mode: "0644"
+  notify: Appliquer sysctl
+
+- name: Paquet earlyoom
+  community.general.pacman:
+    name: earlyoom
+    state: present
+
+# Si la mémoire s'épuise malgré tout, earlyoom tue avant le noyau, et il choisit sa cible :
+# jamais la chaîne d'acquisition ni l'accès distant, un navigateur d'abord.
+# Expressions sans guillemets ni espaces : l'unité systemd les passe telles quelles.
+- name: Configuration d'earlyoom
+  ansible.builtin.copy:
+    dest: /etc/default/earlyoom
+    content: |
+      # {{ ansible_managed }}
+      EARLYOOM_ARGS="-r 3600 -m 10 -s 10 --avoid {{ memory_oom_avoid }} --prefer {{ memory_oom_prefer }}"
+    mode: "0644"
+  notify: Relancer earlyoom
+
+- name: Activer earlyoom
+  ansible.builtin.systemd_service:
+    name: earlyoom
+    enabled: true
+    state: started

@@ -1,0 +1,3 @@
+# Noms de processus (comm, 15 caractères max) qu'earlyoom ne tue jamais / tue en premier
+memory_oom_avoid: '^(kstars|phd2|indiserver|indi_[a-z0-9_]+|Xorg|x0vncserver|sshd|lightdm|xfce4-session)$'
+memory_oom_prefer: '^(firefox|chromium|chrome|thunderbird)$'

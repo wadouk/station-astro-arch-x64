@@ -6,6 +6,7 @@
   become: true
   roles:
     - base
+    - memory
     - ssh
     - network
     - headless_vnc
