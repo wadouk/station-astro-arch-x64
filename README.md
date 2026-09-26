@@ -47,28 +47,53 @@ ansible-vault encrypt --vault-password-file .vault-pass group_vars/stations/vaul
 ```
 Garde une copie de `.vault-pass` en lieu sûr (gestionnaire de mots de passe) : sans elle, le coffre est illisible.
 
+## Comment se déroule l'installation
+
+L'installation part de l'**ISO Arch officielle**. Une ISO Manjaro ne convient pas : `archinstall` n'y existe
+pas, et installer Arch depuis Manjaro mélangerait deux bases. L'environnement live de l'ISO Arch **lance
+sshd d'office**. Il suffit de donner un mot de passe à root sur la console pour piloter toute l'installation
+depuis le portable, avec le copier-coller.
+
+La config archinstall générée installe openssh, active sshd et dépose la clé du portable dans
+`~/.ssh/authorized_keys`. **Au premier démarrage, SSH marche donc déjà**, et Ansible prend le relais.
+
+| Étape | Où | Quoi |
+|---|---|---|
+| 1 | portable | générer la config archinstall, préparer le coffre |
+| 2 | console du live | `loadkeys fr`, réseau, `passwd` (root du live uniquement) |
+| 3 | portable → live (SSH) | copier la config, lancer `archinstall`, choisir le disque |
+| 4 | portable → système installé | `ssh astro@…` sans mot de passe, puis Ansible |
+| 5 | portable | redémarrage sans écran, VNC |
+
+Le même déroulé sert pour la VM (d'abord) et pour le mini PC (ensuite).
+
 ## Tester dans la VM
 
 ```bash
 make vm-iso vm-disk             # ISO officielle vérifiée + disque 40 Go
-make archinstall-config-vm      # génère archinstall/out/ (mot de passe « astro »)
-make vm-serve                   # terminal 1 : sert la config à la VM
-make vm-install                 # terminal 2 : démarre la VM sur l'ISO
+make archinstall-config-vm      # archinstall/out/ (mot de passe « astro »)
+make vm-install                 # démarre la VM sur l'ISO (fenêtre QEMU)
 ```
-Dans la VM (console de l'ISO) :
+Dans la fenêtre QEMU, une fois la console de l'ISO affichée :
 ```bash
-archinstall --config-url http://10.0.2.2:8000/user_configuration.json \
-            --creds-url  http://10.0.2.2:8000/user_credentials.json
+loadkeys fr
+passwd                          # mot de passe root du live, par exemple « live »
 ```
-Tout est prérempli sauf le **disque**. Dans le menu disque, choisir :
+Puis depuis le portable :
+```bash
+make vm-push-config             # scp de la config dans l'ISO (localhost:2222)
+make vm-live-ssh                # SSH dans l'ISO
+archinstall --config user_configuration.json --creds user_credentials.json
+```
+Tout est prérempli sauf le **disque**. Dans *Disk configuration*, choisir :
 - le disque virtuel, disposition par défaut ;
 - système de fichiers **btrfs**, avec les sous-volumes par défaut ;
 - snapshots **Snapper**.
 
-Puis lancer l'installation, éteindre la VM, et :
+Puis *Install*. À la fin, `poweroff`, et :
 ```bash
-make vm-run                     # démarre sur le disque
-make ping                       # HOST=vm par défaut
+make vm-run                     # démarre sur le disque installé
+make ping                       # HOST=vm par défaut, SSH par clé
 make apply                      # converge la VM
 make check                      # doit ne plus rien changer : c'est le test d'idempotence
 vncviewer localhost::5901       # bureau XFCE de la VM, mot de passe VNC de host_vars/vm.yml
@@ -78,15 +103,50 @@ QEMU reste noire) et le VNC.
 
 ## Installer le mini PC
 
-1. Clé USB avec l'ISO officielle (`vm/cache/archlinux-x86_64.iso`, déjà vérifiée).
-2. `make archinstall-config` (demande le mot de passe de l'utilisateur, le même que `vault_become_password`).
-3. Servir `archinstall/out/` sur le réseau local le temps de l'installation :
-   `python3 -m http.server 8000 --directory archinstall/out` (Ctrl+C juste après, les identifiants sont en clair).
-   Autre solution : copier les deux fichiers sur une clé USB et utiliser `--config` / `--creds`.
-4. Sur le mini PC, depuis l'ISO :
-   `archinstall --config-url http://<ip-portable>:8000/user_configuration.json --creds-url http://<ip-portable>:8000/user_credentials.json`.
-   Disque : btrfs + Snapper, comme dans la VM.
-5. Au redémarrage : `make ping HOST=station` puis `make apply HOST=station`, redémarrer, débrancher l'écran.
+**1. Sur le portable**
+```bash
+make archinstall-config         # demande le mot de passe d'astro (= vault_become_password du coffre)
+lsblk                           # repérer la clé USB, ex. /dev/sdb
+sudo dd if=vm/cache/archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```
+`dd` efface la clé. Pour garder plusieurs ISO sur la même clé, utiliser Ventoy.
+
+**2. Sur le mini PC** (écran, clavier, câble Ethernet de préférence)
+- BIOS : démarrage **UEFI**, **Secure Boot désactivé**, démarrage sur la clé (F7, F11 ou Suppr selon la carte).
+- Console du live :
+  ```bash
+  loadkeys fr
+  ip -4 a                       # noter l'IP ; en Wi-Fi : iwctl station wlan0 connect <SSID>
+  passwd                        # root du live uniquement
+  ```
+
+**3. Depuis le portable**
+```bash
+make push-config IP=<ip-minipc>
+make live-ssh IP=<ip-minipc>
+archinstall --config user_configuration.json --creds user_credentials.json
+```
+Disque : le SSD NVMe, disposition par défaut, **btrfs + Snapper**, comme dans la VM. **Le SSD est entièrement
+effacé.** À la fin : `poweroff`, retirer la clé USB, rallumer.
+
+**4. Premier démarrage.** L'écran de connexion XFCE s'affiche : la connexion auto n'est pas encore
+configurée, c'est Ansible qui s'en charge. SSH est déjà actif avec la clé du portable :
+```bash
+ssh-keygen -R <ip-minipc>       # si cette IP a déjà servi (ancienne install, live ISO)
+ssh astro@<ip-minipc>           # entre sans mot de passe ; accepter la clé d'hôte
+```
+Au premier passage, `astro-station.local` n'existe pas encore (avahi est installé par Ansible) : on passe l'IP.
+```bash
+make ping  HOST=station IP=<ip-minipc>
+make apply HOST=station IP=<ip-minipc>
+ssh astro@astro-station.local   # accepter la clé d'hôte sous ce nom
+```
+
+**5. Passage sans écran.** `ssh astro@astro-station.local sudo reboot`, débrancher l'écran, puis :
+```bash
+vncviewer astro-station.local::5900
+make check HOST=station         # plus rien à changer
+```
 
 ## Au quotidien
 

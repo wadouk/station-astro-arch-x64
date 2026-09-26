@@ -4,7 +4,6 @@
 #   vm/vm.sh disk     crée le disque (40 Go) et les variables UEFI
 #   vm/vm.sh install  démarre sur l'ISO
 #   vm/vm.sh run      démarre sur le disque installé
-#   vm/vm.sh serve    sert archinstall/out/ à la VM (http://10.0.2.2:8000)
 #   vm/vm.sh reset    supprime disque et variables UEFI
 # Redirections : SSH localhost:2222 -> VM:22, VNC localhost:5901 -> VM:5900
 set -euo pipefail
@@ -18,7 +17,6 @@ DISK_SIZE="40G"
 VARS_FILE="$CACHE_DIR/OVMF_VARS.4m.fd"
 VM_RAM="4096"
 VM_CPUS="4"
-SERVE_PORT=8000
 
 _log() { printf '\e[1;34m==>\e[0m %s\n' "$*" >&2; }
 _die() { printf '\e[1;31m[x]\e[0m %s\n' "$*" >&2; exit 1; }
@@ -69,16 +67,6 @@ _install() {
           -device ide-cd,drive=cd0,bootindex=1
 }
 
-_serve() {
-    local out="$VM_DIR/../archinstall/out"
-    [[ -f "$out/user_configuration.json" ]] || _die "Rien à servir : make archinstall-config-vm"
-    _log "Dans l'ISO de la VM :"
-    _log "  archinstall --config-url http://10.0.2.2:$SERVE_PORT/user_configuration.json --creds-url http://10.0.2.2:$SERVE_PORT/user_credentials.json"
-    _log "Ctrl+C une fois l'installation lancée"
-    # Écoute sur localhost uniquement : la VM voit l'hôte en 10.0.2.2
-    python3 -m http.server "$SERVE_PORT" --bind 127.0.0.1 --directory "$out"
-}
-
 _reset() {
     rm -f "$DISK_FILE" "$VARS_FILE"
     _log "Disque et variables UEFI supprimés (ISO conservée)"
@@ -89,7 +77,6 @@ case "${1:-}" in
     disk)    _disk ;;
     install) _install ;;
     run)     _qemu ;;
-    serve)   _serve ;;
     reset)   _reset ;;
-    *)       sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *)       sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
