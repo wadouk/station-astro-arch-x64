@@ -6,7 +6,7 @@
   ansible.builtin.copy:
     dest: /etc/systemd/zram-generator.conf
     content: |
-      # {{ ansible_managed }}
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
       [zram0]
       zram-size = ram
       compression-algorithm = zstd
@@ -18,7 +18,7 @@
   ansible.builtin.copy:
     dest: /etc/sysctl.d/99-vm-zram-parameters.conf
     content: |
-      # {{ ansible_managed }}
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
       vm.swappiness = 180
       vm.watermark_boost_factor = 0
       vm.watermark_scale_factor = 125
@@ -38,7 +38,7 @@
   ansible.builtin.copy:
     dest: /etc/default/earlyoom
     content: |
-      # {{ ansible_managed }}
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
       EARLYOOM_ARGS="-r 3600 -m 10 -s 10 --avoid {{ memory_oom_avoid }} --prefer {{ memory_oom_prefer }}"
     mode: "0644"
   notify: Relancer earlyoom

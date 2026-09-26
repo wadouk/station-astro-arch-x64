@@ -26,7 +26,7 @@
   ansible.builtin.copy:
     dest: /etc/X11/xorg.conf.d/00-keyboard.conf
     content: |
-      # {{ ansible_managed }}
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
       Section "InputClass"
           Identifier "system-keyboard"
           MatchIsKeyboard "on"

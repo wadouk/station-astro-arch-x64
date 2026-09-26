@@ -25,7 +25,7 @@
   ansible.builtin.copy:
     dest: /etc/lightdm/lightdm.conf.d/50-astro-autologin.conf
     content: |
-      # {{ ansible_managed }}
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
       [Seat:*]
       autologin-user={{ station_user }}
       autologin-session=xfce
