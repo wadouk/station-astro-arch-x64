@@ -50,6 +50,14 @@
     enabled: true
     state: started
 
+# Timer fourni par pacman-contrib : chaque semaine, garde les 3 dernières versions de chaque paquet en cache.
+# Ansible ne fait que l'activer ; le nettoyage tourne sur la station, portable éteint.
+- name: Nettoyage hebdomadaire du cache pacman
+  ansible.builtin.systemd_service:
+    name: paccache.timer
+    enabled: true
+    state: started
+
 - name: Chercher les .pacnew en attente
   ansible.builtin.find:
     paths: /etc

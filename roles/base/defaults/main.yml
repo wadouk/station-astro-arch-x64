@@ -3,7 +3,8 @@ base_packages:
   - git
   - rsync
   - usbutils
-  - pacman-contrib   # pacdiff, checkupdates
+  - pacman-contrib   # pacdiff, checkupdates, paccache
+  - compsize         # taux de compression réel sur btrfs : sudo compsize <dossier>
   - chrony
   - xorg-xset
   - xorg-xdpyinfo
