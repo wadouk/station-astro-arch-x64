@@ -9,6 +9,7 @@
     - memory
     - ssh
     - network
+    - gps
     - headless_vnc
     - snapshots
     - astro

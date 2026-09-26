@@ -30,9 +30,30 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `roles/network` | Wi-Fi sans économie d'énergie, point d'accès de terrain (fichier NetworkManager déclaratif) |
 | `roles/headless_vnc` | connexion auto LightDM, écran factice, x0vncserver (service utilisateur), pas de verrouillage |
 | `roles/snapshots` | snapper (racine seulement), snap-pac, grub-btrfs |
-| `roles/astro` | kstars, libindi, stellarsolver, paquets AUR (utilisateur dédié `aur_builder` + paru) |
+| `roles/gps` | gpsd sur le chemin stable du GPS (`gps_device`), heure système par chrony (refclock SHM, comme AstroArch) |
+| `roles/memory` | zram à la taille de la RAM, réglages vm.* pour zram, earlyoom qui épargne la chaîne d'acquisition |
+| `roles/astro` | kstars, libindi, stellarsolver, PHD2 (AUR via `aur_builder` + paru), pilotes INDI tiers (PKGBUILD du dépôt), ModemManager masqué |
 | `update.yml` | `pacman -Syu` + AUR, puis reconvergence |
 | `vm/vm.sh` | VM de test QEMU/UEFI |
+
+## Matériel
+
+| Équipement | Pilote INDI | Source |
+|---|---|---|
+| Monture EQMod | `indi_eqmod_telescope` | `roles/astro/files/indi-station-drivers` (compilé) |
+| Boîtier Nikon | `indi_nikon_ccd` (gphoto) | idem |
+| GPS USB | `indi_gpsd` + gpsd | idem, gpsd des dépôts officiels |
+| Focuser MoonLite | `indi_moonlite_focus` | libindi (dépôts officiels) |
+| Bande chauffante CheapoDC | `indi_cheapodc` | libindi (dépôts officiels) |
+
+Les paquets AUR `libindi-eqmod`, `libindi-gphoto` et `libindi-gpsd` exigent `libindi=<version exacte>` et
+décrochent à chaque mise à jour de libindi. Le PKGBUILD du dépôt compile ces trois pilotes depuis indi-3rdparty
+contre la libindi installée. Pour une nouvelle version : changer `pkgver` et `sha256sums`, puis `make apply`
+recompile.
+
+Le GPS se déclare par son chemin stable (`ls -l /dev/serial/by-id/` sur la station) dans
+`inventory/host_vars/station.yml` (`gps_device`). La détection automatique de gpsd est coupée : elle reconnaît
+les puces CP210x des câbles EQDIR et prendrait le port de la monture.
 
 ## Préparer le portable (une fois)
 

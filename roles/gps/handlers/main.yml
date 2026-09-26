@@ -1,0 +1,9 @@
+- name: Relancer gpsd
+  ansible.builtin.systemd_service:
+    name: gpsd
+    state: restarted
+
+- name: Relancer chrony
+  ansible.builtin.systemd_service:
+    name: chronyd
+    state: restarted

@@ -1,0 +1,3 @@
+# Chemin stable du GPS USB : brancher le GPS puis `ls -l /dev/serial/by-id/`.
+# Vide = gpsd tourne sans périphérique (VM, GPS pas encore branché).
+gps_device: ""

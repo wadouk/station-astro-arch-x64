@@ -43,6 +43,54 @@
     state: present
   when: astro_aur_packages | length > 0
 
+# --- Pilotes INDI tiers : PKGBUILD du dépôt, compilé contre la libindi installée ---
+- name: PKGBUILD des pilotes de la station
+  ansible.builtin.copy:
+    src: indi-station-drivers/
+    dest: /var/lib/aur_builder/pkgbuilds/indi-station-drivers/
+    owner: aur_builder
+    group: aur_builder
+    mode: "0644"
+    directory_mode: "0755"
+
+# Version attendue lue dans le PKGBUILD du dépôt : changer pkgver suffit à déclencher la recompilation
+- name: Version attendue des pilotes
+  ansible.builtin.set_fact:
+    _drivers_expected: >-
+      {{ _pkgbuild | regex_search('(?m)^pkgver=(\S+)', '\1') | first }}-{{ _pkgbuild | regex_search('(?m)^pkgrel=(\S+)', '\1') | first }}
+  vars:
+    _pkgbuild: "{{ lookup('ansible.builtin.file', role_path ~ '/files/indi-station-drivers/PKGBUILD') }}"
+
+- name: Version installée des pilotes
+  ansible.builtin.command: pacman -Q indi-station-drivers
+  register: _drivers_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Pilotes EQMod, GPhoto, GPSD (compilés, quelques minutes)
+  become: true
+  become_user: aur_builder
+  ansible.builtin.command:
+    cmd: makepkg --syncdeps --install --noconfirm --cleanbuild --force
+    chdir: /var/lib/aur_builder/pkgbuilds/indi-station-drivers
+  when: _drivers_installed.stdout.split() | last | default('') != _drivers_expected
+
+# --- Pièges connus en astro ---
+# ModemManager sonde les ports série : il perturbe la monture (EQMod) et le GPS
+- name: Masquer ModemManager
+  ansible.builtin.file:
+    src: /dev/null
+    dest: /etc/systemd/system/ModemManager.service
+    state: link
+    force: true
+
+# gvfs-gphoto2 monte le boîtier photo dans le gestionnaire de fichiers et le prend à INDI
+- name: Pas de montage automatique des boîtiers photo
+  community.general.pacman:
+    name: gvfs-gphoto2
+    state: absent
+
 - name: Accès aux ports série et USB (montures, GPS, focusers)
   ansible.builtin.user:
     name: "{{ station_user }}"

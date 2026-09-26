@@ -44,6 +44,6 @@ astro_packages:
   - kstars
   - libindi
   - stellarsolver
-# Vérifier les noms sur https://aur.archlinux.org avant d'ajouter des pilotes
+# Paquets AUR hors pilotes INDI (les pilotes tiers : roles/astro/files/indi-station-drivers)
 astro_aur_packages:
   - phd2

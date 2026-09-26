@@ -1,0 +1,40 @@
+# GPS USB -> gpsd -> heure système (chrony) et position (pilote INDI gpsd pour KStars).
+# Idée reprise d'AstroArch (plugins/gps, refclock SHM de chrony) : heure juste sans réseau sur le terrain.
+- name: Paquet gpsd
+  community.general.pacman:
+    name: gpsd
+    state: present
+
+# USBAUTO=false : la détection automatique de gpsd reconnaît les puces CP210x, courantes sur les
+# câbles EQDIR, et prendrait le port de la monture. On déclare le GPS par son chemin stable.
+# -n : lit le GPS en continu, même sans client, pour alimenter chrony.
+- name: Configuration de gpsd
+  ansible.builtin.copy:
+    dest: /etc/default/gpsd
+    content: |
+      # Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
+      START_DAEMON="true"
+      GPSD_OPTIONS="-n"
+      DEVICES="{{ gps_device }}"
+      USBAUTO="false"
+    mode: "0644"
+  notify: Relancer gpsd
+
+- name: Activer gpsd
+  ansible.builtin.systemd_service:
+    name: gpsd
+    enabled: true
+    state: started
+
+# Même source d'heure qu'AstroArch (astroarch_build.sh) : gpsd publie l'heure NMEA en mémoire partagée
+- name: chrony lit l'heure du GPS
+  ansible.builtin.lineinfile:
+    path: /etc/chrony.conf
+    regexp: '^refclock SHM 0'
+    line: refclock SHM 0 offset 0.5 delay 0.2 refid NMEA
+  notify: Relancer chrony
+
+- name: GPS non déclaré
+  ansible.builtin.debug:
+    msg: "gps_device vide : brancher le GPS, ls -l /dev/serial/by-id/, puis renseigner gps_device dans host_vars/station.yml"
+  when: gps_device | length == 0
