@@ -85,10 +85,17 @@ make vm-push-config             # scp de la config dans l'ISO (localhost:2222)
 make vm-live-ssh                # SSH dans l'ISO
 archinstall --config user_configuration.json --creds user_credentials.json
 ```
-Tout est prérempli sauf le **disque**. Dans *Disk configuration*, choisir :
-- le disque virtuel, disposition par défaut ;
-- système de fichiers **btrfs**, avec les sous-volumes par défaut ;
-- snapshots **Snapper**.
+Tout est prérempli sauf le **disque**. Dans *Disk configuration* :
+1. *Partitioning* → **Use a best-effort default partition layout** → le disque virtuel.
+2. Système de fichiers **btrfs**.
+3. « Would you like to use BTRFS subvolumes with a default structure? » → **Yes**. C'est indispensable :
+   sans sous-volume `@` monté sur `/`, l'entrée suivante n'apparaît pas.
+4. Compression : **Use compression** (zstd).
+5. De retour dans *Disk configuration*, l'entrée **Btrfs snapshots** est apparue → **Snapper**.
+
+La partition `/boot` proposée (FAT32, ~1 Gio) est la partition EFI qu'utilise GRUB : la garder. Évite le
+partitionnement manuel. Il ne crée pas de sous-volumes, donc pas de snapshots, à moins de les déclarer
+un par un (`@` → `/`, `@home` → `/home`, `@log` → `/var/log`, `@pkg` → `/var/cache/pacman/pkg`).
 
 Puis *Install*. À la fin, `poweroff`, et :
 ```bash
@@ -126,7 +133,8 @@ make push-config IP=<ip-minipc>
 make live-ssh IP=<ip-minipc>
 archinstall --config user_configuration.json --creds user_credentials.json
 ```
-Disque : le SSD NVMe, disposition par défaut, **btrfs + Snapper**, comme dans la VM. **Le SSD est entièrement
+Disque : même procédure que dans la VM (disposition *best-effort*, btrfs, sous-volumes par défaut → **Yes**,
+Btrfs snapshots → **Snapper**), sur le SSD NVMe. **Le SSD est entièrement
 effacé.** À la fin : `poweroff`, retirer la clé USB, rallumer.
 
 **4. Premier démarrage.** L'écran de connexion XFCE s'affiche : la connexion auto n'est pas encore
