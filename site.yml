@@ -14,3 +14,4 @@
     - headless_vnc
     - snapshots
     - astro
+    - backup

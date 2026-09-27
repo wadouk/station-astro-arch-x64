@@ -1,0 +1,37 @@
+# Sauvegarde à la demande (pas de timer) : la station sort en itinérance, la sauvegarde se lance au retour.
+# Actif seulement si le dépôt restic est défini (coffre : vault_backup_restic_repository).
+- name: Sauvegarde vers le NAS
+  when: backup_restic_repository | length > 0
+  block:
+    - name: Paquets restic, rsync, NFS
+      community.general.pacman:
+        name: [restic, rsync, nfs-utils]
+        state: present
+
+    - name: Dossier de configuration
+      ansible.builtin.file:
+        path: /etc/astro-backup
+        state: directory
+        mode: "0700"
+
+    - name: Mot de passe du dépôt restic
+      ansible.builtin.copy:
+        dest: /etc/astro-backup/restic-password
+        content: "{{ backup_restic_password }}\n"
+        mode: "0600"
+      no_log: true
+
+    - name: Adresse du dépôt restic
+      ansible.builtin.copy:
+        dest: /etc/astro-backup/env
+        content: |
+          RESTIC_REPOSITORY={{ backup_restic_repository }}
+          RESTIC_PASSWORD_FILE=/etc/astro-backup/restic-password
+        mode: "0600"
+      no_log: true
+
+    - name: Commande astro-backup
+      ansible.builtin.template:
+        src: astro-backup.sh.j2
+        dest: /usr/local/bin/astro-backup
+        mode: "0755"

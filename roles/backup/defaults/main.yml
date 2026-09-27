@@ -1,0 +1,26 @@
+# Sauvegarde à la demande vers le NAS (make backup / archive-images). Rôle actif si le dépôt restic est défini.
+# Adresses et identifiants : dans le coffre (voir vault.yml.example), main.yml reste standard.
+
+# Dépôt restic, ex. rest:http://astro:<mdp>@nas.local:8000/astro (rest-server en ajout seul sur le NAS)
+backup_restic_repository: "{{ vault_backup_restic_repository | default('') }}"
+backup_restic_password: "{{ vault_restic_password | default('') }}"
+# Joignabilité testée avant chaque commande (vide = dépôt local, pas de test)
+backup_nas_host: "{{ vault_backup_nas_host | default('') }}"
+backup_nas_port: 8000
+
+# Données de travail sauvegardées par restic, relatives au home de station_user
+backup_paths:
+  - .local/share/kstars   # userdb.sqlite : profils Ekos, équipement, bibliothèque de darks
+  - .config/kstarsrc
+  - .indi                 # configuration des pilotes (dont Capture Target du boîtier)
+  - .PHD2                 # profils et darks PHD2
+backup_extra_paths: []    # ex. dossier des séquences Ekos
+backup_excludes:
+  - .local/share/kstars/astrometry   # index de plate-solving : volumineux, retéléchargeables
+  - .local/share/kstars/*.kscat      # catalogues téléchargés par KStars
+
+# Images : copiées telles quelles (NEF/FITS ouvrables depuis le portable), puis vérifiées
+backup_images_dir: Pictures/astro          # relatif au home de station_user
+# Partage NFS du NAS, ex. nas.local:/volume1/Astro ; vide = backup_images_mountpoint est un dossier local (VM)
+backup_images_nfs: "{{ vault_backup_images_nfs | default('') }}"
+backup_images_mountpoint: /mnt/astro-archive

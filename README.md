@@ -32,6 +32,7 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `roles/snapshots` | snapper (racine seulement), snap-pac, grub-btrfs |
 | `roles/gps` | appliqué si `gps_device` est renseigné : gpsd sur le chemin stable du GPS, heure système par chrony (refclock SHM, comme AstroArch) |
 | `roles/memory` | zram à la taille de la RAM, réglages vm.* pour zram, earlyoom qui épargne la chaîne d'acquisition |
+| `roles/backup` | commande `astro-backup` (restic + archive d'images vérifiée), lancée à la demande par `make backup` / `make archive-images` |
 | `roles/astro` | kstars, libindi, stellarsolver, PHD2 (AUR via `aur_builder` + paru), pilotes INDI tiers (PKGBUILD généré depuis `hardware.yml`), ModemManager masqué |
 | `update.yml` | `pacman -Syu` + AUR, puis reconvergence |
 | `vm/vm.sh` | VM de test QEMU/UEFI |
@@ -198,6 +199,50 @@ ssh astro@astro-station.local   # accepter la clé d'hôte sous ce nom
 vncviewer astro-station.local::5900
 make check HOST=station         # plus rien à changer
 ```
+
+## Sauvegarde vers le NAS
+
+À la demande, au retour sur le réseau de la maison : pas de timer, puisque la station part en itinérance. Tout
+se lance depuis le portable, et la sortie s'affiche dans le terminal, erreurs comprises.
+
+| Commande | Effet |
+|---|---|
+| `make backup HOST=station` | données de travail (KStars `userdb.sqlite`, `~/.indi`, PHD2, `kstarsrc`) → restic sur le NAS, depuis un snapshot btrfs de `/home` (base KStars cohérente même ouverte) |
+| `make archive-images HOST=station` | images (`~/Pictures/astro`) → partage NFS du NAS, puis **vérification par relecture complète** |
+| `make archive-images HOST=station DELETE=1` | idem, puis efface de la station **seulement** les images archivées et vérifiées |
+| `make backup-status HOST=station` | 5 dernières sauvegardes |
+| `make backup-check HOST=station` | relit 5 % des données du dépôt (à faire de temps en temps) |
+
+Pourquoi pas rsync seul : une erreur partielle (code 23 ou 24) passe inaperçue, et il n'y a ni historique ni
+vérification. restic garde des sauvegardes datées, signale une sauvegarde incomplète (code 3 : échec franc ici)
+et chiffre tout. Les images restent des fichiers ouvrables (Siril), copiées puis relues avant tout effacement.
+Test de restauration, de temps en temps :
+`restic -r <dépôt> restore latest --target /tmp/test --include /home/astro/.indi`.
+
+### Côté NAS Asustor (une fois)
+restic n'est pas installé sur le NAS : il tourne sur la station, le NAS stocke seulement les données.
+1. **App Central** : installer *Docker Engine* (et *Portainer* pour une interface graphique).
+2. **Dossiers partagés** : `Backup` (dépôts restic) et `Astro` (archive d'images).
+3. **Serveur restic en ajout seul** (la station peut ajouter des sauvegardes, jamais en effacer). Activer SSH
+   (*Services → Terminal*), puis :
+   ```bash
+   docker run -d --name rest-server --restart unless-stopped -p 8000:8000 \
+     -v /volume1/Backup/restic:/data -e OPTIONS="--append-only --private-repos" restic/rest-server
+   docker exec -it rest-server create_user astro      # demande le mot de passe du dépôt HTTP
+   ```
+4. **NFS** : *Services → NFS* activé, puis sur le dossier `Astro` un droit d'écriture NFS pour l'IP de la station.
+5. **Coffre** (`ansible-vault edit …`) : `vault_backup_restic_repository`, `vault_restic_password` (clé de
+   chiffrement : **à garder aussi dans ton gestionnaire de mots de passe**, sans elle les sauvegardes sont
+   illisibles), `vault_backup_nas_host`, `vault_backup_images_nfs` (voir `vault.yml.example`), puis `make apply`.
+
+**Nettoyage des vieilles sauvegardes** : la station ne peut pas effacer (ajout seul). Le nettoyage se fait
+depuis le portable, avec l'accès administrateur du NAS :
+```bash
+restic -r sftp:admin@nas.local:/volume1/Backup/restic/astro forget --keep-daily 7 --keep-weekly 8 --keep-monthly 12 --prune
+```
+
+Le serveur restic écoute en HTTP sur le réseau local : les données sont déjà chiffrées par restic, seul
+l'identifiant du serveur circule en clair. Pour du HTTPS, voir l'option `--tls` de rest-server.
 
 ## Au quotidien
 

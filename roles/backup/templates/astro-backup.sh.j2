@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
+# Sauvegarde à la demande de la station vers le NAS. Lancé depuis le portable par make (en root).
+#   astro-backup config             données KStars/INDI/PHD2 -> dépôt restic (NAS, ajout seul)
+#   astro-backup images [--delete]  images -> archive du NAS, contenu vérifié ; --delete efface
+#                                   de la station les images archivées ET vérifiées
+#   astro-backup check              relit 5 % des données du dépôt restic
+#   astro-backup status             dernières sauvegardes
+# Toute erreur arrête le script avec un code non nul : rien de silencieux.
+set -euo pipefail
+
+STATION_USER="{{ station_user }}"
+BACKUP_PATHS=({% for p in backup_paths + backup_extra_paths %} "{{ p }}"{% endfor %})
+BACKUP_EXCLUDES=({% for p in backup_excludes %} "{{ p }}"{% endfor %})
+NAS_HOST="{{ backup_nas_host }}"
+NAS_PORT="{{ backup_nas_port }}"
+IMAGES_DIR="/home/${STATION_USER}/{{ backup_images_dir }}"
+IMAGES_NFS="{{ backup_images_nfs }}"
+IMAGES_MOUNT="{{ backup_images_mountpoint }}"
+IMAGES_SUBDIR="{{ station_hostname }}"
+SNAPSHOT="/.astro-backup-home"
+# Au-delà : bash pur, protégé de Jinja (la longueur de tableau bash ouvrirait un commentaire Jinja)
+{% raw %}
+
+set -a
+# shellcheck source=/dev/null
+source /etc/astro-backup/env
+set +a
+
+_log()  { printf '==> %s\n' "$*"; logger -t astro-backup -- "$*"; }
+_die()  { printf '[x] %s\n' "$*" >&2; logger -t astro-backup -p user.err -- "$*"; exit 1; }
+
+_nas_reachable() {
+    local port="$1"
+    [[ -n "$NAS_HOST" ]] || return 0
+    timeout 5 bash -c "</dev/tcp/${NAS_HOST}/${port}" 2>/dev/null \
+        || _die "NAS ${NAS_HOST}:${port} injoignable : la station est-elle sur le réseau de la maison ?"
+}
+
+_cleanup_snapshot() {
+    if [[ -e "$SNAPSHOT" ]]; then
+        btrfs subvolume delete "$SNAPSHOT" >/dev/null
+    fi
+}
+
+cmd_config() {
+    _nas_reachable "$NAS_PORT"
+    if ! restic cat config >/dev/null 2>&1; then
+        _log "Dépôt restic absent : initialisation"
+        restic init
+    fi
+
+    # Snapshot en lecture seule de /home : base KStars figée dans un état cohérent, même KStars ouvert
+    btrfs subvolume show /home >/dev/null 2>&1 || _die "/home n'est pas un sous-volume btrfs"
+    _cleanup_snapshot
+    btrfs subvolume snapshot -r /home "$SNAPSHOT" >/dev/null
+    trap _cleanup_snapshot EXIT
+
+    local paths=() p
+    for p in "${BACKUP_PATHS[@]}"; do
+        if [[ -e "${SNAPSHOT}/${STATION_USER}/${p}" ]]; then
+            paths+=("/home/${STATION_USER}/${p}")
+        else
+            _log "Absent, ignoré : ~/${p}"
+        fi
+    done
+    [[ ${#paths[@]} -gt 0 ]] || _die "Aucun des chemins à sauvegarder n'existe"
+    local excludes=()
+    for p in "${BACKUP_EXCLUDES[@]}"; do excludes+=(--exclude "/home/${STATION_USER}/${p}"); done
+
+    # Le snapshot est monté sur /home dans un espace de montage privé : restic enregistre les vrais chemins
+    _log "Sauvegarde restic de ${#paths[@]} chemins"
+    local rc=0
+    unshare --mount --propagation private bash -c \
+        'mount --bind "$1" /home && shift && exec restic backup --tag astro-config "$@"' \
+        _ "$SNAPSHOT" "${excludes[@]}" "${paths[@]}" || rc=$?
+    case "$rc" in
+        0) _log "Sauvegarde terminée" ;;
+        3) _die "Certains fichiers étaient illisibles : sauvegarde INCOMPLÈTE (voir ci-dessus)" ;;
+        *) _die "restic a échoué (code $rc)" ;;
+    esac
+}
+
+_mount_archive() {
+    if [[ -n "$IMAGES_NFS" ]]; then
+        _nas_reachable 2049
+        mkdir -p "$IMAGES_MOUNT"
+        mountpoint -q "$IMAGES_MOUNT" || mount -t nfs -o soft,timeo=100 "$IMAGES_NFS" "$IMAGES_MOUNT"
+        trap 'umount "$IMAGES_MOUNT"' EXIT
+    fi
+    [[ -d "$IMAGES_MOUNT" ]] || _die "Archive introuvable : $IMAGES_MOUNT"
+}
+
+# Fichiers dont le contenu diffère entre la station et l'archive (relecture complète)
+_differences() {
+    rsync -r --checksum --dry-run --out-format='%n' "$IMAGES_DIR/" "$1/" | grep -v '/$' || true
+}
+
+cmd_images() {
+    local delete=0
+    [[ "${1:-}" == "--delete" ]] && delete=1
+    [[ -d "$IMAGES_DIR" ]] || _die "Dossier d'images introuvable : $IMAGES_DIR"
+    _mount_archive
+    local dest="${IMAGES_MOUNT}/${IMAGES_SUBDIR}"
+    mkdir -p "$dest"
+
+    # Liste figée avant la copie : seules ces images pourront être effacées
+    local list
+    list="$(mktemp)"
+    (cd "$IMAGES_DIR" && find . -type f -print0) > "$list"
+    local count
+    count="$(tr -cd '\0' < "$list" | wc -c)"
+    [[ "$count" -gt 0 ]] || { _log "Aucune image à archiver"; return 0; }
+
+    # -rt et non -a : sur NFS, les chown échoueraient (code 23) sans rien apprendre sur les données
+    _log "Copie de $count images vers $dest"
+    local rc=0
+    rsync -rt --partial --info=stats1 "$IMAGES_DIR/" "$dest/" || rc=$?
+    [[ "$rc" -eq 0 ]] || _die "Copie incomplète (rsync code $rc) : rien n'a été effacé"
+
+    # Vérification : relecture complète des deux côtés, plus rien ne doit différer.
+    # Un fichier de l'archive abîmé (même taille, même date) échappe à la copie : il est signalé,
+    # recopié, puis revérifié. Des réparations répétées trahiraient un disque du NAS qui faiblit.
+    _log "Vérification du contenu (relecture complète)"
+    local diffs f
+    diffs="$(_differences "$dest")"
+    if [[ -n "$diffs" ]]; then
+        while IFS= read -r f; do _log "[!] Différent sur le NAS, recopié : $f"; done <<<"$diffs"
+        rc=0
+        rsync -rt --checksum "$IMAGES_DIR/" "$dest/" || rc=$?
+        [[ "$rc" -eq 0 ]] || _die "Réparation impossible (rsync code $rc) : rien n'a été effacé"
+        diffs="$(_differences "$dest")"
+        if [[ -n "$diffs" ]]; then
+            printf '%s\n' "$diffs" >&2
+            _die "Vérification échouée après réparation : $(wc -l <<<"$diffs") fichiers diffèrent : rien n'a été effacé"
+        fi
+    fi
+    _log "Vérification réussie : $count images identiques sur le NAS"
+
+    if [[ "$delete" -eq 1 ]]; then
+        (cd "$IMAGES_DIR" && xargs -0 rm -f -- < "$list")
+        find "$IMAGES_DIR" -mindepth 1 -type d -empty -delete
+        _log "$count images archivées et vérifiées effacées de la station"
+    fi
+    rm -f "$list"
+}
+
+cmd_check() {
+    _nas_reachable "$NAS_PORT"
+    restic check --read-data-subset=5%
+}
+
+cmd_status() {
+    _nas_reachable "$NAS_PORT"
+    restic snapshots --compact --latest 5
+}
+
+case "${1:-}" in
+    config) cmd_config ;;
+    images) shift; cmd_images "$@" ;;
+    check)  cmd_check ;;
+    status) cmd_status ;;
+    *)      sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac
+{% endraw %}

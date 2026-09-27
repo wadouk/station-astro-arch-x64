@@ -9,3 +9,9 @@ vault_wifi_networks:
   - { ssid: "Ouvert", priority: 1 }
 # La VM n'a pas de GPS
 gps_device: ""
+# Sauvegarde de test : dépôt restic et archive d'images en dossiers locaux (pas de NAS)
+vault_backup_restic_repository: /var/tmp/restic-test
+vault_restic_password: "restic-test"
+vault_backup_nas_host: ""
+vault_backup_images_nfs: ""
+backup_images_mountpoint: /var/tmp/archive-test

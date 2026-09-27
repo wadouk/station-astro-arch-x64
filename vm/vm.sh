@@ -6,6 +6,7 @@
 #   vm/vm.sh run      démarre sur le disque installé
 #   vm/vm.sh reset    supprime disque et variables UEFI
 # Redirections : SSH localhost:2222 -> VM:22, VNC localhost:5901 -> VM:5900
+# VM_DISPLAY=none vm/vm.sh run : sans fenêtre (VNC et SSH seulement)
 set -euo pipefail
 
 VM_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -57,7 +58,7 @@ _qemu() {
         -drive file="$DISK_FILE",if=none,id=hd0,format=qcow2 \
         -device virtio-blk-pci,drive=hd0,bootindex=2 \
         -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:5901-:5900 \
-        -vga virtio -display gtk \
+        -vga virtio -display "${VM_DISPLAY:-gtk}" \
         "$@"
 }
 
@@ -78,5 +79,5 @@ case "${1:-}" in
     install) _install ;;
     run)     _qemu ;;
     reset)   _reset ;;
-    *)       sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *)       sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

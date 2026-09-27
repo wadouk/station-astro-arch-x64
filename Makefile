@@ -9,12 +9,13 @@ PLAYBOOK := ansible-playbook $(VAULT_ARGS) --limit $(HOST) $(HOST_ARGS)
 # L'ISO live change de clé d'hôte à chaque démarrage : ne pas polluer known_hosts
 LIVE_SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-.PHONY: help deps hooks syntax ping check apply update archinstall-config archinstall-config-vm \
+.PHONY: help deps hooks syntax ping check apply update backup archive-images backup-check backup-status archinstall-config archinstall-config-vm \
         live-ssh push-config vm-live-ssh vm-push-config \
         vm-iso vm-disk vm-install vm-run vm-reset
 
 help:
 	@echo "Station :   make check|apply|update HOST=vm|station [IP=<adresse>]"
+	@echo "Sauvegarde : make backup|backup-status|backup-check HOST=station, make archive-images HOST=station [DELETE=1]"
 	@echo "Outils :    make deps syntax ping"
 	@echo "Install :   make archinstall-config[-vm]"
 	@echo "Live ISO :  make push-config|live-ssh IP=<adresse>   (VM : make vm-push-config|vm-live-ssh)"
@@ -43,6 +44,21 @@ apply:
 # pacman -Syu + AUR (snapshots snap-pac avant/après) puis reconvergence
 update:
 	$(PLAYBOOK) update.yml --diff
+
+# Sauvegarde à la demande (station sur le réseau de la maison) ; la sortie s'affiche ici, erreurs comprises
+BACKUP := ansible $(VAULT_ARGS) $(HOST) $(HOST_ARGS) --become -m ansible.builtin.command -a
+
+backup:
+	$(BACKUP) "astro-backup config"
+
+archive-images:
+	$(BACKUP) "astro-backup images$(if $(DELETE), --delete,)"
+
+backup-check:
+	$(BACKUP) "astro-backup check"
+
+backup-status:
+	$(BACKUP) "astro-backup status"
 
 archinstall-config:
 	archinstall/generate.sh
