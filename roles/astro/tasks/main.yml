@@ -55,6 +55,14 @@
         group: aur_builder
         mode: "0755"
 
+    # Inscrite dans le PKGBUILD : une mise à jour de libindi (make update) change le PKGBUILD,
+    # donc recompile les pilotes contre la nouvelle libindi
+    - name: Version installée de libindi
+      ansible.builtin.command: pacman -Q libindi
+      register: _libindi_installed
+      changed_when: false
+      check_mode: false
+
     - name: PKGBUILD des pilotes de la station
       ansible.builtin.template:
         src: PKGBUILD.j2

@@ -167,7 +167,7 @@ sudo dd if=vm/cache/archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress oflag
   ```bash
   loadkeys fr                   # seulement pour un clavier AZERTY
   ip -4 a                       # noter l'IP ; en Wi-Fi : iwctl station wlan0 connect <SSID>
-  passwd                        # root du live uniquement
+  passwd                        # root du live uniquement, requis par ssh
   ```
 
 **3. Depuis le portable**
