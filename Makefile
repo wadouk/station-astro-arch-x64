@@ -9,13 +9,13 @@ PLAYBOOK := ansible-playbook $(VAULT_ARGS) --limit $(HOST) $(HOST_ARGS)
 # L'ISO live change de clé d'hôte à chaque démarrage : ne pas polluer known_hosts
 LIVE_SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-.PHONY: help deps hooks syntax ping check apply update backup archive-images backup-check backup-status restore archinstall-config archinstall-config-vm \
+.PHONY: help deps hooks syntax ping check apply update backup archive-images backup-check backup-status restore backup-secrets archinstall-config archinstall-config-vm \
         live-ssh push-config vm-live-ssh vm-push-config \
         vm-iso vm-disk vm-install vm-run vm-reset
 
 help:
 	@echo "Station :   make check|apply|update HOST=vm|station [IP=<adresse>]"
-	@echo "Sauvegarde : make backup|backup-status|backup-check|restore HOST=station, make archive-images HOST=station [DELETE=1]"
+	@echo "Sauvegarde : make backup|backup-status|backup-check|restore HOST=station, make backup-secrets, make archive-images HOST=station [DELETE=1]"
 	@echo "Outils :    make deps syntax ping"
 	@echo "Install :   make archinstall-config[-vm]"
 	@echo "Live ISO :  make push-config|live-ssh IP=<adresse>   (VM : make vm-push-config|vm-live-ssh)"
@@ -29,7 +29,7 @@ hooks:
 	git config core.hooksPath .githooks
 
 syntax:
-	ansible-playbook $(VAULT_ARGS) --syntax-check site.yml update.yml
+	ansible-playbook $(VAULT_ARGS) --syntax-check site.yml update.yml backup-secrets.yml
 
 ping:
 	ansible $(VAULT_ARGS) $(HOST) $(HOST_ARGS) -m ansible.builtin.ping
@@ -59,6 +59,10 @@ backup-check:
 
 backup-status:
 	$(BACKUP) "astro-backup status"
+
+# Fichiers personnels du portable (coffre, .vault-pass, hardware.yml, locale.yml, clé SSH) -> dépôt restic du NAS
+backup-secrets:
+	ansible-playbook $(VAULT_ARGS) backup-secrets.yml
 
 # Après réinstallation : make apply, puis make restore, puis redémarrage
 restore:

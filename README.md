@@ -39,10 +39,12 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 
 ## Réglages personnels
 
-Deux fichiers non versionnés, chargés automatiquement ; tout le reste est le standard du projet.
+Fichiers non versionnés, chargés automatiquement et sauvegardés par `make backup-secrets` ; tout le reste est le
+standard du projet.
 
 | Fichier | Contenu | Sans le fichier |
 |---|---|---|
+| `group_vars/stations/vault.yml` | secrets (mots de passe, Wi-Fi, NAS), chiffré par ansible-vault | à créer depuis `vault.yml.example` |
 | `group_vars/stations/locale.yml` | fuseau horaire, disposition du clavier | UTC, QWERTY US |
 | `group_vars/stations/hardware.yml` | pilotes INDI tiers, GPS, logiciels astro en plus | socle kstars/libindi/stellarsolver |
 
@@ -225,6 +227,19 @@ dans la configuration de la session. Range tes fonds d'écran dans `~/.local/sha
 
 Test de restauration sans rien écraser, de temps en temps :
 `restic -r <dépôt> restore latest --target /tmp/test --include /home/astro/.indi`.
+
+### Sauvegarder les secrets du portable
+Le coffre (`vault.yml`), sa clé (`.vault-pass`), `hardware.yml`, `locale.yml` et la clé SSH qui ouvre la station
+ne sont **pas versionnés** : ils vivent sur le portable. `make backup-secrets` les envoie dans le même dépôt restic
+du NAS (étiquette `astro-secrets`). Il faut `restic` sur le portable : `sudo pacman -S restic`.
+
+Le coffre contient le mot de passe restic : garde donc **l'adresse du dépôt et le mot de passe restic dans ton
+gestionnaire de mots de passe**. C'est le seul secret à conserver hors de tout ça. Portable perdu :
+```bash
+git clone <ce dépôt> ~/q/astro-station-x64
+restic -r <adresse du dépôt> restore latest --tag astro-secrets --target /   # demande le mot de passe restic
+```
+Les fichiers reviennent à leur place (`~/q/astro-station-x64/…`, `~/.ssh/…`) : `make deps` et tout refonctionne.
 
 ### Côté NAS Asustor (une fois)
 restic n'est pas installé sur le NAS : il tourne sur la station, le NAS stocke seulement les données.

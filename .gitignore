@@ -4,6 +4,8 @@
 group_vars/stations/hardware.yml
 # Fuseau horaire et clavier propres à chacun (modèle : group_vars/stations/locale.yml.example)
 group_vars/stations/locale.yml
+# Coffre des secrets : sauvegardé par make backup-secrets, jamais publié (modèle : vault.yml.example)
+group_vars/stations/vault.yml
 # Collections installées par `make deps`
 collections/
 # ISO, disque et variables UEFI de la VM
