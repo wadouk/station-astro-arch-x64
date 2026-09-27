@@ -36,15 +36,24 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `update.yml` | `pacman -Syu` + AUR, puis reconvergence |
 | `vm/vm.sh` | VM de test QEMU/UEFI |
 
+## Réglages personnels
+
+Deux fichiers non versionnés, chargés automatiquement ; tout le reste est le standard du projet.
+
+| Fichier | Contenu | Sans le fichier |
+|---|---|---|
+| `group_vars/stations/locale.yml` | fuseau horaire, disposition du clavier | UTC, QWERTY US |
+| `group_vars/stations/hardware.yml` | pilotes INDI tiers, GPS, logiciels astro en plus | socle kstars/libindi/stellarsolver |
+
+```bash
+cp group_vars/stations/locale.yml.example group_vars/stations/locale.yml
+cp group_vars/stations/hardware.yml.example group_vars/stations/hardware.yml
+```
+`make archinstall-config` lit aussi `locale.yml` (clavier et fuseau de l'installation).
+
 ## Matériel
 
 Le matériel et les logiciels astro propres à chaque station sont dans `group_vars/stations/hardware.yml`.
-Ce fichier n'est **pas versionné** : chacun a le sien, même avec un dépôt public. Ansible le charge
-automatiquement.
-```bash
-cp group_vars/stations/hardware.yml.example group_vars/stations/hardware.yml
-$EDITOR group_vars/stations/hardware.yml
-```
 | Variable | Rôle |
 |---|---|
 | `indi_3rdparty_drivers` | pilotes INDI tiers à compiler : `name` = option `WITH_<name>` d'indi-3rdparty, `depends` = paquets nécessaires |

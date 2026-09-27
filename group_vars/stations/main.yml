@@ -5,12 +5,7 @@ ansible_user: "{{ station_user }}"
 ansible_become_password: "{{ vault_become_password }}"
 
 station_hostname: astro-station
-station_timezone: Europe/Paris
-# Disposition du clavier physique (indépendante de la langue fr_FR).
-# Console (localectl list-keymaps) et X11 (localectl list-x11-keymap-layouts) : us/us, uk/gb, fr/fr...
-station_keymap: us
-station_x11_layout: us
-station_x11_variant: ""
+# Fuseau horaire et clavier : group_vars/stations/locale.yml (non versionné, modèle : locale.yml.example)
 
 # Clé publique du portable déposée dans ~/.ssh/authorized_keys de la station
 ssh_pubkey_file: "~/.ssh/id_ed25519.pub"

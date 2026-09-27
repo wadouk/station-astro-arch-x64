@@ -2,6 +2,8 @@
 .vault-pass
 # Matériel propre à chaque station (modèle : group_vars/stations/hardware.yml.example)
 group_vars/stations/hardware.yml
+# Fuseau horaire et clavier propres à chacun (modèle : group_vars/stations/locale.yml.example)
+group_vars/stations/locale.yml
 # Collections installées par `make deps`
 collections/
 # ISO, disque et variables UEFI de la VM

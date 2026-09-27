@@ -1,3 +1,9 @@
+# Fuseau horaire et clavier par défaut ; les tiens dans group_vars/stations/locale.yml
+station_timezone: UTC
+station_keymap: us
+station_x11_layout: us
+station_x11_variant: ""
+
 base_packages:
   - base-devel
   - git
