@@ -30,6 +30,10 @@ vnc_height: 1080
 # Modeline générée par `cvt 1920 1080 60` ou reprise d'AstroArch ; à changer avec la résolution
 vnc_modeline: '"1920x1080_60.00" 172.80 1920 2040 2248 2576 1080 1081 1084 1118 -HSync +Vsync'
 
+# Réseaux Wi-Fi connus : liste dans le coffre (vault_wifi_networks), voir vault.yml.example.
+# Priorité la plus haute d'abord ; le point d'accès de terrain (-10) passe après.
+wifi_networks: "{{ vault_wifi_networks | default([]) }}"
+
 # Point d'accès Wi-Fi de terrain (vide = aucun). Priorité basse : le Wi-Fi connu passe avant
 hotspot_ssid: ""
 hotspot_psk: "{{ vault_hotspot_psk | default('') }}"

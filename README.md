@@ -187,6 +187,7 @@ make check HOST=station         # plus rien à changer
 | Mettre à jour (jamais un soir de ciel clair) | `make update HOST=station`, puis `sudo pacdiff` si des .pacnew sont signalés, puis un test avec les simulateurs INDI |
 | Épingler kstars/INDI pendant la saison | `pacman_ignore: [kstars, libindi]` dans `group_vars/stations/main.yml`, puis `make apply` |
 | Revenir en arrière après une mise à jour ratée | redémarrer, menu GRUB « Arch Linux snapshots », choisir le snapshot pre-pacman |
+| Ajouter/retirer un réseau Wi-Fi | `ansible-vault edit --vault-password-file .vault-pass group_vars/stations/vault.yml` (liste `vault_wifi_networks`), puis `make apply HOST=station` |
 | Retrouver l'écran physique | `vnc_dummy_screen: false`, `make apply`, redémarrer |
 | VNC seulement par tunnel SSH | `vnc_localhost_only: true`, puis `ssh -L 5900:localhost:5900 astro@astro-station.local` |
 

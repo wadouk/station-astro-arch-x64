@@ -25,6 +25,41 @@
       ACTION=="add", SUBSYSTEM=="net", KERNEL=="wl*", RUN+="/usr/bin/iw dev $name set power_save off"
     mode: "0644"
 
+# --- Réseaux Wi-Fi connus (liste wifi_networks, clés dans le coffre) ---
+# Un fichier astro-wifi-<ssid>.nmconnection par réseau ; les réseaux ajoutés à la main ne sont pas touchés.
+- name: Noms des fichiers de réseaux attendus
+  ansible.builtin.set_fact:
+    _wifi_files_expected: >-
+      {{ wifi_networks | map(attribute='ssid') | map('regex_replace', '[^A-Za-z0-9_-]', '_')
+         | map('regex_replace', '^', 'astro-wifi-') | map('regex_replace', '$', '.nmconnection') | list }}
+
+- name: Réseaux Wi-Fi connus
+  ansible.builtin.template:
+    src: astro-wifi.nmconnection.j2
+    dest: "/etc/NetworkManager/system-connections/{{ _wifi_files_expected[idx] }}"
+    mode: "0600"
+  loop: "{{ wifi_networks }}"
+  loop_control:
+    index_var: idx
+    label: "{{ item.ssid }}"
+  notify: Recharger les connexions NetworkManager
+
+- name: Réseaux Wi-Fi gérés par Ansible
+  ansible.builtin.find:
+    paths: /etc/NetworkManager/system-connections
+    patterns: "astro-wifi-*.nmconnection"
+  register: _wifi_files
+
+- name: Retirer les réseaux sortis de la liste
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ _wifi_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename) not in _wifi_files_expected
+  notify: Recharger les connexions NetworkManager
+
 # Fichier de connexion déclaratif : créé et rechargé, jamais activé de force
 # (autoconnect-priority -10 : le Wi-Fi connu passe avant, le point d'accès prend le relais sur le terrain)
 - name: Point d'accès Wi-Fi de terrain

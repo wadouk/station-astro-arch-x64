@@ -1,0 +1,25 @@
+# Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
+[connection]
+id={{ item.ssid }}
+type=wifi
+autoconnect=true
+autoconnect-priority={{ item.priority | default(0) }}
+
+[wifi]
+mode=infrastructure
+ssid={{ item.ssid }}
+{% if item.hidden | default(false) %}
+hidden=true
+{% endif %}
+{% if item.psk | default('') %}
+
+[wifi-security]
+key-mgmt={{ item.key_mgmt | default('wpa-psk') }}
+psk={{ item.psk }}
+{% endif %}
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto

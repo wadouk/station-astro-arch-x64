@@ -5,5 +5,11 @@
 vault_become_password: "changeme"
 # Mot de passe VNC : 6 à 8 caractères (VNC tronque au-delà de 8)
 vault_vnc_password: "changeme"
+# Réseaux Wi-Fi connus : ssid, psk (absent = réseau ouvert), priority (défaut 0),
+# hidden (SSID masqué), key_mgmt (wpa-psk par défaut, sae pour du WPA3 seul)
+vault_wifi_networks:
+  - { ssid: "Maison", psk: "clé-wifi-maison", priority: 20 }
+  - { ssid: "Club astro", psk: "clé-du-club", priority: 10 }
+  - { ssid: "Telephone", psk: "clé-partage-4g", priority: 5 }
 # Clé WPA du point d'accès (8 caractères minimum), si hotspot_ssid est rempli
 vault_hotspot_psk: "changeme-too"
