@@ -290,3 +290,7 @@ l'identifiant du serveur circule en clair. Pour du HTTPS, voir l'option `--tls` 
 
 Ansible fonctionne sans agent, en SSH depuis le portable. Il a des modules pacman, AUR et systemd,
 `--check --diff` pour voir la dérive, et ansible-vault pour les secrets. C'est aussi une compétence réutilisable.
+
+## Licence
+
+[MIT](LICENSE). Idées reprises d'[AstroArch](https://github.com/devDucks/astroarch), sous licence MIT également.
