@@ -28,7 +28,7 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `roles/base` | paquets, nom de machine, fuseau, pas de mise en veille, USB toujours alimenté, chrony, IgnorePkg, rapport des .pacnew |
 | `roles/ssh` | clé du portable, sshd durci (sans root ni mot de passe), redirections TCP/X11, `<nom>.local` (avahi) |
 | `roles/network` | Wi-Fi sans économie d'énergie, point d'accès de terrain (fichier NetworkManager déclaratif) |
-| `roles/headless_vnc` | connexion auto LightDM, écran factice, x0vncserver (service utilisateur), pas de verrouillage |
+| `roles/headless_vnc` | connexion auto LightDM, écran factice, x0vncserver (service utilisateur), pas de verrouillage, Firefox navigateur par défaut |
 | `roles/snapshots` | snapper (racine seulement), snap-pac, grub-btrfs |
 | `roles/gps` | appliqué si `gps_device` est renseigné : gpsd sur le chemin stable du GPS, heure système par chrony (refclock SHM, comme AstroArch) |
 | `roles/memory` | zram à la taille de la RAM, réglages vm.* pour zram, earlyoom qui épargne la chaîne d'acquisition |

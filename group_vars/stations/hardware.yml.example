@@ -22,3 +22,4 @@ gps_device: ""
 astro_extra_packages: []        # dépôts officiels, ex. [siril]
 astro_aur_packages:             # AUR
   - phd2
+  # - astrodmx-capture          # capture planétaire (type FireCapture), binaire précompilé

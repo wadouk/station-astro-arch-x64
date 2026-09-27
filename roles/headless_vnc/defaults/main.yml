@@ -3,3 +3,8 @@ vnc_packages:
   - xf86-video-dummy
   - lightdm
   - lightdm-gtk-greeter
+
+# Navigateur : liens de KStars, PHD2, pilotes INDI... (earlyoom le sacrifie en premier si la RAM manque)
+desktop_packages:
+  - firefox
+desktop_browser: firefox.desktop

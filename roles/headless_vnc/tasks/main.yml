@@ -9,6 +9,26 @@
     name: "{{ vnc_packages }}"
     state: present
 
+- name: Navigateur
+  community.general.pacman:
+    name: "{{ desktop_packages }}"
+    state: present
+
+# xdg-open (liens cliqués dans les logiciels) lit mimeapps.list
+- name: Navigateur par défaut
+  become: false
+  community.general.ini_file:
+    path: ~/.config/mimeapps.list
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ desktop_browser }}"
+    no_extra_spaces: true
+    mode: "0644"
+  loop:
+    - x-scheme-handler/http
+    - x-scheme-handler/https
+    - text/html
+
 # --- Connexion automatique (équivalent de configs/kde_settings.conf d'AstroArch) ---
 - name: Groupe autologin
   ansible.builtin.group:
