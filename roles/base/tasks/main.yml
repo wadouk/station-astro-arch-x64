@@ -61,12 +61,14 @@
     mode: "0644"
   notify: Recharger udev
 
-- name: Désactiver systemd-timesyncd (remplacé par chrony)
+# Masqué comme dans AstroArch : un « synchroniser automatiquement » (timedatectl set-ntp)
+# ne peut pas le réactiver à côté de chrony
+- name: Masquer systemd-timesyncd (remplacé par chrony)
   ansible.builtin.systemd_service:
     name: systemd-timesyncd
     enabled: false
     state: stopped
-  failed_when: false
+    masked: true
 
 - name: Activer chrony
   ansible.builtin.systemd_service:
