@@ -43,11 +43,5 @@ wifi_iface: ""
 # Paquets épinglés pendant la saison d'observation (IgnorePkg de pacman), ex. [kstars, libindi]
 pacman_ignore: []
 
-# Logiciels astro
-astro_packages:
-  - kstars
-  - libindi
-  - stellarsolver
-# Paquets AUR hors pilotes INDI (les pilotes tiers : roles/astro/files/indi-station-drivers)
-astro_aur_packages:
-  - phd2
+# Matériel et logiciels astro propres à ta station : group_vars/stations/hardware.yml
+# (non versionné, chargé automatiquement ; modèle : hardware.yml.example)

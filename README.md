@@ -30,35 +30,43 @@ piloter la config (Ansible) : on peut l'éteindre en pleine séance.
 | `roles/network` | Wi-Fi sans économie d'énergie, point d'accès de terrain (fichier NetworkManager déclaratif) |
 | `roles/headless_vnc` | connexion auto LightDM, écran factice, x0vncserver (service utilisateur), pas de verrouillage |
 | `roles/snapshots` | snapper (racine seulement), snap-pac, grub-btrfs |
-| `roles/gps` | gpsd sur le chemin stable du GPS (`gps_device`), heure système par chrony (refclock SHM, comme AstroArch) |
+| `roles/gps` | appliqué si `gps_device` est renseigné : gpsd sur le chemin stable du GPS, heure système par chrony (refclock SHM, comme AstroArch) |
 | `roles/memory` | zram à la taille de la RAM, réglages vm.* pour zram, earlyoom qui épargne la chaîne d'acquisition |
-| `roles/astro` | kstars, libindi, stellarsolver, PHD2 (AUR via `aur_builder` + paru), pilotes INDI tiers (PKGBUILD du dépôt), ModemManager masqué |
+| `roles/astro` | kstars, libindi, stellarsolver, PHD2 (AUR via `aur_builder` + paru), pilotes INDI tiers (PKGBUILD généré depuis `hardware.yml`), ModemManager masqué |
 | `update.yml` | `pacman -Syu` + AUR, puis reconvergence |
 | `vm/vm.sh` | VM de test QEMU/UEFI |
 
 ## Matériel
 
-| Équipement | Pilote INDI | Source |
-|---|---|---|
-| Monture EQMod | `indi_eqmod_telescope` | `roles/astro/files/indi-station-drivers` (compilé) |
-| Boîtier Nikon | `indi_nikon_ccd` (gphoto) | idem |
-| GPS USB | `indi_gpsd` + gpsd | idem, gpsd des dépôts officiels |
-| Focuser MoonLite | `indi_moonlite_focus` | libindi (dépôts officiels) |
-| Bande chauffante CheapoDC | `indi_cheapodc` | libindi (dépôts officiels) |
+Le matériel et les logiciels astro propres à chaque station sont dans `group_vars/stations/hardware.yml`.
+Ce fichier n'est **pas versionné** : chacun a le sien, même avec un dépôt public. Ansible le charge
+automatiquement.
+```bash
+cp group_vars/stations/hardware.yml.example group_vars/stations/hardware.yml
+$EDITOR group_vars/stations/hardware.yml
+```
+| Variable | Rôle |
+|---|---|
+| `indi_3rdparty_drivers` | pilotes INDI tiers à compiler : `name` = option `WITH_<name>` d'indi-3rdparty, `depends` = paquets nécessaires |
+| `gps_device` | chemin stable du GPS (`ls -l /dev/serial/by-id/` sur la station) ; vide = pas de GPS, rôle `gps` non appliqué |
+| `astro_extra_packages` / `astro_aur_packages` | logiciels en plus de kstars/libindi/stellarsolver (dépôts officiels / AUR) |
 
-Les paquets AUR `libindi-eqmod`, `libindi-gphoto` et `libindi-gpsd` exigent `libindi=<version exacte>` et
-décrochent à chaque mise à jour de libindi. Le PKGBUILD du dépôt compile ces trois pilotes depuis indi-3rdparty
-contre la libindi installée. Pour une nouvelle version : changer `pkgver` et `sha256sums`, puis `make apply`
-recompile.
+Beaucoup de pilotes sont déjà dans libindi (dépôts officiels, rien à compiler), par exemple MoonLite
+(`indi_moonlite_focus`) ou CheapoDC (`indi_cheapodc`). Liste complète : `ls /usr/bin/indi_*` sur la station.
 
-Le GPS se déclare par son chemin stable (`ls -l /dev/serial/by-id/` sur la station) dans
-`inventory/host_vars/station.yml` (`gps_device`). La détection automatique de gpsd est coupée : elle reconnaît
-les puces CP210x des câbles EQDIR et prendrait le port de la monture.
+**Pourquoi un PKGBUILD généré plutôt que les paquets AUR `libindi-*`.** Ces paquets exigent
+`libindi=<version exacte>` et décrochent à chaque mise à jour de libindi dans les dépôts officiels.
+`roles/astro/templates/PKGBUILD.j2` compile les pilotes listés depuis indi-3rdparty, contre la libindi
+installée. Modifier la liste, ou la version (`indi_3rdparty_version` et `indi_3rdparty_sha256` dans
+`roles/astro/defaults/main.yml`), déclenche une recompilation au `make apply` suivant.
+
+La détection automatique de gpsd est coupée : elle reconnaît les puces CP210x des câbles EQDIR et prendrait
+le port de la monture. Le GPS est déclaré par son chemin stable.
 
 ## Préparer le portable (une fois)
 
 ```bash
-make deps                                  # collections Ansible dans ./collections
+make deps                                  # collections Ansible + garde-fou des secrets (hook git)
 ls ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519
 # Secrets de la vraie station
 openssl rand -base64 32 > .vault-pass && chmod 600 .vault-pass
@@ -67,6 +75,10 @@ $EDITOR group_vars/stations/vault.yml
 ansible-vault encrypt --vault-password-file .vault-pass group_vars/stations/vault.yml
 ```
 Garde une copie de `.vault-pass` en lieu sûr (gestionnaire de mots de passe) : sans elle, le coffre est illisible.
+
+`make deps` active `.githooks/pre-commit` (git n'active jamais les hooks d'un clone de lui-même). Le hook refuse
+tout commit de `.vault-pass`, ou d'un `vault*.yml` non chiffré. Modifie le coffre avec `ansible-vault edit`,
+jamais `decrypt`.
 
 ## Comment se déroule l'installation
 

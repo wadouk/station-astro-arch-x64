@@ -1,0 +1,14 @@
+# Socle commun ; le reste vient de group_vars/stations/hardware.yml
+astro_packages:
+  - kstars
+  - libindi
+  - stellarsolver
+astro_extra_packages: []
+astro_aur_packages: []
+
+# Pilotes INDI tiers à compiler (voir hardware.yml.example)
+indi_3rdparty_drivers: []
+# Version d'indi-3rdparty compilée. Nouvelle version : changer les deux lignes
+# (sha256sum de https://github.com/indilib/indi-3rdparty/archive/refs/tags/v<version>.tar.gz)
+indi_3rdparty_version: "2.2.4.1"
+indi_3rdparty_sha256: 2ca31244224faa3db667baac71d6a7d2f056b0b8169ee1cdb37f7ca4a7203c25

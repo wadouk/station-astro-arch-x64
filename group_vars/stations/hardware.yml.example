@@ -1,0 +1,24 @@
+# Matériel et logiciels astro de TA station. Copier en hardware.yml (non versionné) puis adapter :
+#   cp group_vars/stations/hardware.yml.example group_vars/stations/hardware.yml
+# Sans hardware.yml : kstars, libindi et stellarsolver seulement, pas de pilote tiers ni de GPS.
+
+# Pilotes INDI fournis par libindi (dépôts officiels, rien à compiler), pour mémoire :
+#   focuser MoonLite -> indi_moonlite_focus, bande chauffante CheapoDC -> indi_cheapodc,
+#   liste complète : ls /usr/bin/indi_* sur la station
+
+# Pilotes INDI tiers (indi-3rdparty), compilés contre la libindi installée.
+# name : option WITH_<name> de https://github.com/indilib/indi-3rdparty/blob/master/CMakeLists.txt
+# depends : paquets des dépôts nécessaires à la compilation de ce pilote
+indi_3rdparty_drivers:
+  - { name: EQMOD }                                  # monture EQMod -> indi_eqmod_telescope
+  - { name: GPHOTO, depends: [libgphoto2, libraw] }  # boîtier Nikon/Canon -> indi_nikon_ccd, indi_canon_ccd
+  - { name: GPSD, depends: [gpsd] }                  # GPS via gpsd -> indi_gpsd
+
+# GPS USB : brancher le GPS puis `ls -l /dev/serial/by-id/` sur la station. Vide = pas de GPS (gpsd non installé).
+gps_device: ""
+# gps_device: /dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00
+
+# Logiciels en plus de kstars/libindi/stellarsolver
+astro_extra_packages: []        # dépôts officiels, ex. [siril]
+astro_aur_packages:             # AUR
+  - phd2

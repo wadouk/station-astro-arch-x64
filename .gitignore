@@ -1,5 +1,7 @@
 # Mot de passe ansible-vault
 .vault-pass
+# Matériel propre à chaque station (modèle : group_vars/stations/hardware.yml.example)
+group_vars/stations/hardware.yml
 # Collections installées par `make deps`
 collections/
 # ISO, disque et variables UEFI de la VM

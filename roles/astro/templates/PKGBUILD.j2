@@ -1,0 +1,40 @@
+# Généré par Ansible (astro-station-x64) depuis indi_3rdparty_drivers de hardware.yml
+# Pilotes INDI tiers de la station, compilés contre la libindi installée.
+# Pourquoi pas les paquets AUR libindi-* : ils exigent libindi=<version exacte> et décrochent à chaque
+# mise à jour de libindi dans les dépôts officiels. Recette reprise de ces paquets AUR.
+pkgname=indi-station-drivers
+pkgver={{ indi_3rdparty_version }}
+pkgrel=1
+pkgdesc="Pilotes INDI tiers de la station : {{ indi_3rdparty_drivers | map(attribute='name') | join(', ') }}"
+arch=(x86_64)
+url="https://github.com/indilib/indi-3rdparty"
+license=(GPL-3.0-or-later)
+depends=(libindi{% for d in indi_3rdparty_drivers | map(attribute='depends', default=[]) | flatten | unique %} {{ d }}{% endfor %})
+makedepends=(cmake)
+provides=({{ indi_3rdparty_drivers | map(attribute='name') | map('lower') | map('regex_replace', '^', 'libindi-') | join(' ') }})
+conflicts=({{ indi_3rdparty_drivers | map(attribute='name') | map('lower') | map('regex_replace', '^', 'libindi-') | join(' ') }} indi-3rdparty-drivers)
+source=("indi-3rdparty-${pkgver}.tar.gz::https://github.com/indilib/indi-3rdparty/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('{{ indi_3rdparty_sha256 }}')
+
+prepare() {
+  cd "indi-3rdparty-${pkgver}"
+  # Tous les pilotes désactivés par défaut, seuls ceux de la station sont activés au cmake
+  sed -i -e '/option(WITH_.*On/s/ On)/ Off)/' CMakeLists.txt
+  # Installer sous CMAKE_INSTALL_PREFIX et non dans /lib
+  find ./ -name CMakeLists.txt -exec sed -i -e 's|"\/lib|"${CMAKE_INSTALL_PREFIX}/lib|g' {} \;
+}
+
+build() {
+  cmake -B build -S "indi-3rdparty-${pkgver}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DUDEVRULES_INSTALL_DIR=/usr/lib/udev/rules.d \
+{% for d in indi_3rdparty_drivers %}
+    -DWITH_{{ d.name }}=On{{ ' \\' if not loop.last else '' }}
+{% endfor %}
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

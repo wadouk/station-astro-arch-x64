@@ -1,3 +1,0 @@
-# Surcharges pour le mini PC.
-# GPS USB : brancher le GPS puis `ls -l /dev/serial/by-id/` sur la station, et coller le chemin ici.
-# gps_device: /dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00

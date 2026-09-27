@@ -7,3 +7,5 @@ vault_become_password: "astro"   # = VM_PASSWORD de archinstall/generate.sh
 vault_wifi_networks:
   - { ssid: "Test maison", psk: "motdepasse-test", priority: 20 }
   - { ssid: "Ouvert", priority: 1 }
+# La VM n'a pas de GPS
+gps_device: ""

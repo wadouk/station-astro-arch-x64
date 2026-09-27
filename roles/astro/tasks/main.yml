@@ -1,6 +1,6 @@
 - name: Logiciels astro des dépôts officiels
   community.general.pacman:
-    name: "{{ astro_packages }}"
+    name: "{{ astro_packages + astro_extra_packages }}"
     state: present
 
 # --- AUR : utilisateur dédié, méthode documentée par kewlfft.aur ---
@@ -34,7 +34,7 @@
     use: makepkg
     state: present
 
-- name: Paquets AUR (pilotes, PHD2...)
+- name: Paquets AUR (PHD2...)
   become: true
   become_user: aur_builder
   kewlfft.aur.aur:
@@ -43,38 +43,50 @@
     state: present
   when: astro_aur_packages | length > 0
 
-# --- Pilotes INDI tiers : PKGBUILD du dépôt, compilé contre la libindi installée ---
-- name: PKGBUILD des pilotes de la station
-  ansible.builtin.copy:
-    src: indi-station-drivers/
-    dest: /var/lib/aur_builder/pkgbuilds/indi-station-drivers/
-    owner: aur_builder
-    group: aur_builder
-    mode: "0644"
-    directory_mode: "0755"
+# --- Pilotes INDI tiers : PKGBUILD généré depuis hardware.yml, compilé contre la libindi installée ---
+- name: Pilotes INDI tiers
+  when: indi_3rdparty_drivers | length > 0
+  block:
+    - name: Dossier du PKGBUILD des pilotes
+      ansible.builtin.file:
+        path: /var/lib/aur_builder/pkgbuilds/indi-station-drivers
+        state: directory
+        owner: aur_builder
+        group: aur_builder
+        mode: "0755"
 
-# Version attendue lue dans le PKGBUILD du dépôt : changer pkgver suffit à déclencher la recompilation
-- name: Version attendue des pilotes
-  ansible.builtin.set_fact:
-    _drivers_expected: >-
-      {{ _pkgbuild | regex_search('(?m)^pkgver=(\S+)', '\1') | first }}-{{ _pkgbuild | regex_search('(?m)^pkgrel=(\S+)', '\1') | first }}
-  vars:
-    _pkgbuild: "{{ lookup('ansible.builtin.file', role_path ~ '/files/indi-station-drivers/PKGBUILD') }}"
+    - name: PKGBUILD des pilotes de la station
+      ansible.builtin.template:
+        src: PKGBUILD.j2
+        dest: /var/lib/aur_builder/pkgbuilds/indi-station-drivers/PKGBUILD
+        owner: aur_builder
+        group: aur_builder
+        mode: "0644"
+      register: _drivers_pkgbuild
 
-- name: Version installée des pilotes
-  ansible.builtin.command: pacman -Q indi-station-drivers
-  register: _drivers_installed
-  changed_when: false
-  failed_when: false
-  check_mode: false
+    # Marqueur écrit après une compilation réussie : liste de pilotes ou version changée -> recompilation,
+    # et une compilation ratée est retentée au passage suivant
+    - name: Dernier PKGBUILD compilé avec succès
+      ansible.builtin.slurp:
+        src: /var/lib/aur_builder/pkgbuilds/indi-station-drivers/.built
+      register: _drivers_built
+      failed_when: false
 
-- name: Pilotes EQMod, GPhoto, GPSD (compilés, quelques minutes)
-  become: true
-  become_user: aur_builder
-  ansible.builtin.command:
-    cmd: makepkg --syncdeps --install --noconfirm --cleanbuild --force
-    chdir: /var/lib/aur_builder/pkgbuilds/indi-station-drivers
-  when: _drivers_installed.stdout.split() | last | default('') != _drivers_expected
+    - name: Pilotes {{ indi_3rdparty_drivers | map(attribute='name') | join(', ') }} (compilés, quelques minutes)
+      become: true
+      become_user: aur_builder
+      ansible.builtin.command:
+        cmd: makepkg --syncdeps --install --noconfirm --cleanbuild --force
+        chdir: /var/lib/aur_builder/pkgbuilds/indi-station-drivers
+      when: (_drivers_built.content | default('') | b64decode | trim) != _drivers_pkgbuild.checksum
+
+    - name: Noter la compilation réussie
+      ansible.builtin.copy:
+        dest: /var/lib/aur_builder/pkgbuilds/indi-station-drivers/.built
+        content: "{{ _drivers_pkgbuild.checksum }}\n"
+        owner: aur_builder
+        group: aur_builder
+        mode: "0644"
 
 # --- Pièges connus en astro ---
 # ModemManager sonde les ports série : il perturbe la monture (EQMod) et le GPS

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Garde-fou des secrets, activé par `make deps` (git config core.hooksPath .githooks).
+# Refuse le commit si :
+#   - .vault-pass est indexé (clé du coffre) ;
+#   - un fichier vault*.yml indexé n'est pas chiffré par ansible-vault (ex. après un `ansible-vault decrypt`).
+set -u
+
+status=0
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if grep -qx '\.vault-pass' <<<"$staged"; then
+    echo "pre-commit : .vault-pass est la clé du coffre, il ne doit jamais être commité." >&2
+    echo "             git restore --staged .vault-pass" >&2
+    status=1
+fi
+
+while IFS= read -r f; do
+    [[ -z "$f" || "$f" == *.example ]] && continue
+    # Contenu indexé, pas celui du disque : c'est ce qui partirait dans le commit
+    if [[ "$(git show ":$f" | head -c 14)" != '$ANSIBLE_VAULT' ]]; then
+        echo "pre-commit : $f n'est pas chiffré." >&2
+        echo "             ansible-vault encrypt --vault-password-file .vault-pass $f && git add $f" >&2
+        status=1
+    fi
+done < <(grep -E '(^|/)vault[^/]*\.ya?ml$' <<<"$staged")
+
+exit "$status"

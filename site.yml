@@ -9,7 +9,8 @@
     - memory
     - ssh
     - network
-    - gps
+    - role: gps
+      when: gps_device | default('') | length > 0
     - headless_vnc
     - snapshots
     - astro
