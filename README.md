@@ -207,7 +207,7 @@ se lance depuis le portable, et la sortie s'affiche dans le terminal, erreurs co
 
 | Commande | Effet |
 |---|---|
-| `make backup HOST=station` | données de travail (KStars `userdb.sqlite`, `~/.indi`, PHD2, `kstarsrc`) → restic sur le NAS, depuis un snapshot btrfs de `/home` (base KStars cohérente même ouverte) |
+| `make backup HOST=station` | données de travail (KStars `userdb.sqlite`, `~/.indi`, profils et darks PHD2, `kstarsrc`) → restic sur le NAS, depuis un snapshot btrfs de `/home` (base KStars cohérente même ouverte) |
 | `make archive-images HOST=station` | images (`~/Pictures/astro`) → partage NFS du NAS, puis **vérification par relecture complète** |
 | `make archive-images HOST=station DELETE=1` | idem, puis efface de la station **seulement** les images archivées et vérifiées |
 | `make backup-status HOST=station` | 5 dernières sauvegardes |

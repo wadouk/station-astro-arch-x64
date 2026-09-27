@@ -13,7 +13,9 @@ backup_paths:
   - .local/share/kstars   # userdb.sqlite : profils Ekos, équipement, bibliothèque de darks
   - .config/kstarsrc
   - .indi                 # configuration des pilotes (dont Capture Target du boîtier)
-  - .PHD2                 # profils et darks PHD2
+  - .PHDGuidingV2         # PHD2 : profils et réglages (fichier)
+  - .phd2                 # PHD2 : bibliothèque de darks, cartes de pixels défectueux (darks_defects)
+  - .local/share/phd2     # idem si wxWidgets range les données à la mode XDG
 backup_extra_paths: []    # ex. dossier des séquences Ekos
 backup_excludes:
   - .local/share/kstars/astrometry   # index de plate-solving : volumineux, retéléchargeables
