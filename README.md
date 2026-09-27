@@ -207,16 +207,23 @@ se lance depuis le portable, et la sortie s'affiche dans le terminal, erreurs co
 
 | Commande | Effet |
 |---|---|
-| `make backup HOST=station` | données de travail (KStars `userdb.sqlite`, `~/.indi`, profils et darks PHD2, `kstarsrc`) → restic sur le NAS, depuis un snapshot btrfs de `/home` (base KStars cohérente même ouverte) |
+| `make backup HOST=station` | données de travail → restic sur le NAS, depuis un snapshot btrfs de `/home` (base KStars cohérente même ouverte) : KStars (`userdb.sqlite`, `kstarsrc`, index astrometry), `~/.indi`, profils et darks PHD2, raccourcis du bureau, lanceurs personnels, fond d'écran XFCE et ses images |
 | `make archive-images HOST=station` | images (`~/Pictures/astro`) → partage NFS du NAS, puis **vérification par relecture complète** |
 | `make archive-images HOST=station DELETE=1` | idem, puis efface de la station **seulement** les images archivées et vérifiées |
 | `make backup-status HOST=station` | 5 dernières sauvegardes |
 | `make backup-check HOST=station` | relit 5 % des données du dépôt (à faire de temps en temps) |
+| `make restore HOST=station` | remet la dernière sauvegarde en place (refuse si KStars ou PHD2 est ouvert), puis `sudo reboot` |
 
 Pourquoi pas rsync seul : une erreur partielle (code 23 ou 24) passe inaperçue, et il n'y a ni historique ni
 vérification. restic garde des sauvegardes datées, signale une sauvegarde incomplète (code 3 : échec franc ici)
 et chiffre tout. Les images restent des fichiers ouvrables (Siril), copiées puis relues avant tout effacement.
-Test de restauration, de temps en temps :
+Le dossier du bureau (`~/Bureau` ou `~/Desktop`) et les images de fond d'écran sont retrouvés à chaque sauvegarde
+dans la configuration de la session. Range tes fonds d'écran dans `~/.local/share/backgrounds`, pas dans
+`~/Pictures/astro` : `archive-images DELETE=1` les effacerait de la station.
+
+**Après une réinstallation** : `make apply HOST=station`, puis `make restore HOST=station`, puis redémarrer.
+
+Test de restauration sans rien écraser, de temps en temps :
 `restic -r <dépôt> restore latest --target /tmp/test --include /home/astro/.indi`.
 
 ### Côté NAS Asustor (une fois)

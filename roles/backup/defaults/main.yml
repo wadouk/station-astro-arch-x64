@@ -10,15 +10,19 @@ backup_nas_port: 8000
 
 # Données de travail sauvegardées par restic, relatives au home de station_user
 backup_paths:
-  - .local/share/kstars   # userdb.sqlite : profils Ekos, équipement, bibliothèque de darks
+  - .local/share/kstars   # userdb.sqlite (profils Ekos, équipement, darks), index astrometry
   - .config/kstarsrc
   - .indi                 # configuration des pilotes (dont Capture Target du boîtier)
   - .PHDGuidingV2         # PHD2 : profils et réglages (fichier)
   - .phd2                 # PHD2 : bibliothèque de darks, cartes de pixels défectueux (darks_defects)
   - .local/share/phd2     # idem si wxWidgets range les données à la mode XDG
+  - .local/share/applications   # lanceurs personnels (raccourcis de menu)
+  - .config/xfce4/desktop       # position des icônes du bureau
+  - .config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml   # fond d'écran
+  - .local/share/backgrounds    # endroit conseillé pour tes images de fond d'écran
+  # + trouvés à chaque sauvegarde : dossier du bureau (~/Bureau ou ~/Desktop) et images de fond d'écran
 backup_extra_paths: []    # ex. dossier des séquences Ekos
 backup_excludes:
-  - .local/share/kstars/astrometry   # index de plate-solving : volumineux, retéléchargeables
   - .local/share/kstars/*.kscat      # catalogues téléchargés par KStars
 
 # Images : copiées telles quelles (NEF/FITS ouvrables depuis le portable), puis vérifiées

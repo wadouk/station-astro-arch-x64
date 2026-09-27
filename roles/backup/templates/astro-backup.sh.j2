@@ -6,6 +6,7 @@
 #                                   de la station les images archivées ET vérifiées
 #   astro-backup check              relit 5 % des données du dépôt restic
 #   astro-backup status             dernières sauvegardes
+#   astro-backup restore            remet la dernière sauvegarde en place (KStars et PHD2 fermés)
 # Toute erreur arrête le script avec un code non nul : rien de silencieux.
 set -euo pipefail
 
@@ -43,11 +44,40 @@ _cleanup_snapshot() {
     fi
 }
 
+# Chemins trouvés dans la configuration de la session (relatifs au home), lus dans le snapshot :
+# dossier du bureau (raccourcis ; ~/Bureau en français) et images de fond d'écran d'XFCE
+_dynamic_paths() {
+    local home="${SNAPSHOT}/${STATION_USER}" desktop="Desktop" dirs img
+    dirs="${home}/.config/user-dirs.dirs"
+    if [[ -f "$dirs" ]]; then
+        desktop="$(sed -n 's|^XDG_DESKTOP_DIR="\$HOME/\(.*\)"|\1|p' "$dirs")"
+    fi
+    [[ -n "$desktop" ]] && printf '%s\n' "$desktop"
+
+    local xml="${home}/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+    [[ -f "$xml" ]] || return 0
+    grep -o 'name="last-image" type="string" value="[^"]*"' "$xml" | sed 's/.*value="\(.*\)"/\1/' | sort -u |
+    while IFS= read -r img; do
+        case "$img" in
+            "/home/${STATION_USER}/"*)
+                [[ "$img" == "$IMAGES_DIR"/* ]] && _log "Fond d'écran dans le dossier d'images (archivé puis effacé par archive-images --delete) : $img" >&2
+                printf '%s\n' "${img#/home/${STATION_USER}/}" ;;
+            *) ;;  # image du système (/usr/share/backgrounds...) : réinstallée avec son paquet
+        esac
+    done
+}
+
 cmd_config() {
     _nas_reachable "$NAS_PORT"
     if ! restic cat config >/dev/null 2>&1; then
         _log "Dépôt restic absent : initialisation"
         restic init
+    fi
+
+    # xfconfd n'écrit les réglages XFCE (fond d'écran...) que quelques secondes après un changement :
+    # arrêté, il écrit ce qui est en attente ; XFCE le relance dès qu'il en a besoin
+    if pkill -u "$STATION_USER" -x xfconfd; then
+        sleep 1
     fi
 
     # Snapshot en lecture seule de /home : base KStars figée dans un état cohérent, même KStars ouvert
@@ -64,6 +94,9 @@ cmd_config() {
             _log "Absent, ignoré : ~/${p}"
         fi
     done
+    while IFS= read -r p; do
+        [[ -n "$p" && -e "${SNAPSHOT}/${STATION_USER}/${p}" ]] && paths+=("/home/${STATION_USER}/${p}")
+    done < <(_dynamic_paths)
     [[ ${#paths[@]} -gt 0 ]] || _die "Aucun des chemins à sauvegarder n'existe"
     local excludes=()
     for p in "${BACKUP_EXCLUDES[@]}"; do excludes+=(--exclude "/home/${STATION_USER}/${p}"); done
@@ -150,6 +183,18 @@ cmd_check() {
     restic check --read-data-subset=5%
 }
 
+cmd_restore() {
+    _nas_reachable "$NAS_PORT"
+    if pgrep -x kstars >/dev/null || pgrep -x phd2 >/dev/null; then
+        _die "Ferme KStars et PHD2 avant de restaurer"
+    fi
+    # xfconfd garde la configuration XFCE en mémoire : arrêté, il relira les fichiers restaurés
+    pkill -u "$STATION_USER" -x xfconfd || true
+    _log "Restauration de la dernière sauvegarde"
+    restic restore latest --tag astro-config --target /
+    _log "Restauration terminée : redémarre la station pour retrouver bureau et fond d'écran (sudo reboot)"
+}
+
 cmd_status() {
     _nas_reachable "$NAS_PORT"
     restic snapshots --compact --latest 5
@@ -160,6 +205,7 @@ case "${1:-}" in
     images) shift; cmd_images "$@" ;;
     check)  cmd_check ;;
     status) cmd_status ;;
-    *)      sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    restore) cmd_restore ;;
+    *)      sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
 {% endraw %}
