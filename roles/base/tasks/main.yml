@@ -76,6 +76,24 @@
     enabled: true
     state: started
 
+# Les pilotes GPS d'INDI (GPSD, GPS Simulator...) coupent NTP via timedated pour régler eux-mêmes l'heure :
+# chronyd se retrouve désactivé, et la station n'a plus d'heure synchronisée.
+# Inverse de configs/50-timedate.rules d'AstroArch : seul root peut toucher à NTP et à l'heure.
+- name: Personne d'autre que root ne coupe NTP ni ne règle l'heure
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/40-astro-ntp.rules
+    content: |
+      // Géré par Ansible (astro-station-x64) : modifier le dépôt, pas ce fichier
+      // chrony (avec le GPS via gpsd) tient l'heure ; un logiciel ne doit ni couper NTP ni régler l'horloge.
+      polkit.addRule(function(action, subject) {
+          if ((action.id == "org.freedesktop.timedate1.set-ntp" ||
+               action.id == "org.freedesktop.timedate1.set-time") &&
+              subject.user != "root") {
+              return polkit.Result.NO;
+          }
+      });
+    mode: "0644"
+
 # Timer fourni par pacman-contrib : chaque semaine, garde les 3 dernières versions de chaque paquet en cache.
 # Ansible ne fait que l'activer ; le nettoyage tourne sur la station, portable éteint.
 - name: Nettoyage hebdomadaire du cache pacman
