@@ -1,9 +1,9 @@
 # Rôle appliqué seulement si gps_device est renseigné (hardware.yml).
 # GPS USB -> gpsd -> heure système (chrony) et position (pilote INDI gpsd pour KStars).
 # Idée reprise d'AstroArch (plugins/gps, refclock SHM de chrony) : heure juste sans réseau sur le terrain.
-- name: Paquet gpsd
+- name: Paquet gpsd et ses outils graphiques (xgps, xgpsspeed ; cgps et gpsmon fonctionnent sans)
   community.general.pacman:
-    name: gpsd
+    name: [gpsd, gtk3, python-gobject, python-cairo, python-pyserial]
     state: present
 
 # USBAUTO=false : la détection automatique de gpsd reconnaît les puces CP210x, courantes sur les
